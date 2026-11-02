@@ -1,0 +1,21 @@
+/target
+node_modules/
+dist/
+*.swp
+.idea/
+.vscode/
+*~
+*.log
+.DS_Store
+
+# Zugangsdaten und lokale Konfiguration (nie einchecken)
+.env
+*.env
+secrets.*
+.claude/settings.local.json
+
+# Signaturschlüssel
+*.pfx
+*.snk
+*.jks
+*.keystore
