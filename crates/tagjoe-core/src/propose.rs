@@ -107,6 +107,11 @@ impl Plan {
     }
 }
 
+/// Parse "3" or "3/12" into (number, total).
+pub fn parse_num_pub(s: &str) -> (Option<u32>, Option<u32>) {
+    parse_num(s)
+}
+
 fn parse_num(s: &str) -> (Option<u32>, Option<u32>) {
     let s = s.trim();
     let (a, b) = match s.split_once('/') {
@@ -173,9 +178,7 @@ pub fn release_from_unit(unit: &Unit) -> ReleaseInfo {
         }
     }
     // normalize album name from folder when missing
-    if !album.contains_key(&Field::Album) {
-        album.insert(Field::Album, unit.name());
-    }
+    album.entry(Field::Album).or_insert_with(|| unit.name());
     // discs
     let discs: Vec<(Option<u32>, Option<u32>)> = unit.files.iter().map(|f| parse_num(f.get(Field::DiscNumber))).collect();
     let disc_total = unit
@@ -204,15 +207,9 @@ pub fn release_from_unit(unit: &Unit) -> ReleaseInfo {
                 t.insert(*field, v.to_string());
             }
         }
-        if !t.contains_key(&Field::Title) {
-            t.insert(Field::Title, title_from_file_name(&f.file_name));
-        }
-        if !t.contains_key(&Field::Artist) {
-            if let Some(a) = album.get(&Field::AlbumArtist) {
-                if kind != Kind::Compilation {
-                    t.insert(Field::Artist, a.clone());
-                }
-            }
+        t.entry(Field::Title).or_insert_with(|| title_from_file_name(&f.file_name));
+        if let (Some(a), false) = (album.get(&Field::AlbumArtist), kind == Kind::Compilation) {
+            t.entry(Field::Artist).or_insert_with(|| a.clone());
         }
         let d = discs[i].0.unwrap_or(1).max(1);
         let (n, total_in_tag) = parse_num(f.get(Field::TrackNumber));
@@ -287,14 +284,14 @@ pub fn context_for(kind: Kind, merged: &BTreeMap<Field, String>, ext: &str, numb
     c
 }
 
-pub fn file_template<'a>(kind: Kind, cfg: &'a Config) -> &'a str {
+pub fn file_template(kind: Kind, cfg: &Config) -> &str {
     match kind {
         Kind::Compilation => &cfg.templates.compilation,
         Kind::Audiobook => &cfg.templates.audiobook,
         _ => &cfg.templates.album,
     }
 }
-pub fn folder_template<'a>(kind: Kind, cfg: &'a Config) -> &'a str {
+pub fn folder_template(kind: Kind, cfg: &Config) -> &str {
     match kind {
         Kind::Compilation => &cfg.templates.folder_compilation,
         Kind::Audiobook => &cfg.templates.folder_audiobook,

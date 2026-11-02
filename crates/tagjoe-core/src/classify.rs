@@ -26,6 +26,15 @@ pub fn classify(unit: &Unit) -> Kind {
     if genre_book * 2 >= unit.files.len() || path_book || narrator * 2 >= unit.files.len() {
         return Kind::Audiobook;
     }
+    let flag = unit.files.iter().filter(|f| matches!(f.get(Field::Compilation), "1" | "true" | "yes")).count();
+    let aa_various = unit.files.iter().filter(|f| is_various(f.get(Field::AlbumArtist))).count();
+    let name_va = {
+        let n = unit.name().to_lowercase();
+        n.starts_with("va-") || n.starts_with("va_") || n.starts_with("va ") || n.starts_with("various")
+    };
+    if flag * 2 >= unit.files.len() || aa_various * 2 >= unit.files.len() || name_va {
+        return Kind::Compilation;
+    }
     // chapter-like titles ("Kapitel 03", "Chapter 3", "Track 12")
     let chapter_titles = unit.files.iter().filter(|f| looks_like_chapter(f.get(Field::Title))).count();
     if chapter_titles * 2 >= unit.files.len() && unit.files.len() >= 3 {
@@ -37,17 +46,8 @@ pub fn classify(unit: &Unit) -> Kind {
     let artists_all: BTreeSet<String> = unit.files.iter().map(|f| norm(f.get(Field::Artist))).filter(|a| !a.is_empty()).collect();
     let total_min = unit.total_secs() / 60.0;
     let avg = unit.total_secs() / unit.files.len() as f64;
-    if !has_mb && albums.len() <= 1 && artists_all.len() <= 1 && (unit.files.len() >= 15 || total_min > 150.0 || (unit.files.len() >= 6 && avg > 8.0 * 60.0)) {
+    if !has_mb && albums.len() <= 1 && artists_all.len() == 1 && (unit.files.len() >= 15 || total_min > 150.0 || (unit.files.len() >= 6 && avg > 8.0 * 60.0)) {
         return Kind::Audiobook;
-    }
-    let flag = unit.files.iter().filter(|f| matches!(f.get(Field::Compilation), "1" | "true" | "yes")).count();
-    let aa_various = unit.files.iter().filter(|f| is_various(f.get(Field::AlbumArtist))).count();
-    let name_va = {
-        let n = unit.name().to_lowercase();
-        n.starts_with("va-") || n.starts_with("va_") || n.starts_with("va ") || n.starts_with("various")
-    };
-    if flag * 2 >= unit.files.len() || aa_various * 2 >= unit.files.len() || name_va {
-        return Kind::Compilation;
     }
     // varying track artists without a named album artist → compilation; with one (DJ mix) → album
     let aa_named = unit.files.iter().filter(|f| !f.get(Field::AlbumArtist).trim().is_empty()).count();

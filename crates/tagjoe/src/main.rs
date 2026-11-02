@@ -3,13 +3,15 @@
 
 use clap::{Parser, Subcommand};
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use tagjoe_core::config::Config;
 use tagjoe_core::model::{Kind, Unit};
 use tagjoe_core::naming::{Context, Template};
 use tagjoe_core::propose::{self, Plan};
 use tagjoe_core::scan;
+use tagjoe_core::sources::http::Http;
+use tagjoe_core::sources::identify::Identifier;
 use tagjoe_core::schema::{self, Status};
 
 /// println! that ignores a closed pipe (e.g. `tagjoe scan … | head`).
@@ -29,6 +31,9 @@ struct Cli {
     /// Machine-readable JSON output
     #[arg(long, global = true)]
     json: bool,
+    /// Do not use the network (tags and folder images only)
+    #[arg(long, global = true)]
+    offline: bool,
     #[command(subcommand)]
     cmd: Cmd,
 }
@@ -41,6 +46,8 @@ enum Cmd {
     Propose { folder: PathBuf },
     /// Show what "clean" would remove (foreign fields, secondary containers)
     Clean { folder: PathBuf },
+    /// Identify a folder online and list the candidate releases
+    Identify { folder: PathBuf },
     /// Render a name template for a file
     Preview {
         /// Template, e.g. "{albumartist} - {album} - {track} - {title}"
@@ -81,7 +88,7 @@ fn status_mark(s: Status) -> &'static str {
     }
 }
 
-fn cmd_scan(folder: &PathBuf, cfg: &Config, kind: Option<&String>, json: bool) -> Result<(), String> {
+fn cmd_scan(folder: &Path, cfg: &Config, kind: Option<&String>, json: bool) -> Result<(), String> {
     let mut units = scan::scan_path(folder).map_err(|e| e.to_string())?;
     apply_kind(&mut units, kind)?;
     if json {
@@ -131,16 +138,84 @@ fn truncate(s: &str, n: usize) -> String {
     if s.chars().count() <= n { s.to_string() } else { format!("{}…", s.chars().take(n - 1).collect::<String>()) }
 }
 
-fn build_plans(folder: &PathBuf, cfg: &Config, kind: Option<&String>) -> Result<Vec<Plan>, String> {
+fn http(cfg: &Config, offline: bool) -> Http {
+    let mut h = Http::new(tagjoe_core::USER_AGENT, Some(tagjoe_core::config::cache_dir().join("http")), cfg.sources.cache_days);
+    h.offline = offline;
+    h
+}
+
+fn progress(step: &str, done: usize, total: usize) {
+    eprint!("\r{step}: {done}/{total}   ");
+    if done == total {
+        eprintln!();
+    }
+}
+
+fn build_plans(folder: &Path, cfg: &Config, kind: Option<&String>, offline: bool) -> Result<Vec<Plan>, String> {
     let mut units = scan::scan_path(folder).map_err(|e| e.to_string())?;
     apply_kind(&mut units, kind)?;
-    Ok(units
-        .iter()
-        .map(|u| {
-            let rel = propose::release_from_unit(u);
-            propose::build_plan(u, &rel, &propose::identity_match(u.files.len()), cfg)
-        })
-        .collect())
+    let http = http(cfg, offline);
+    let ident = Identifier { http: &http, cfg };
+    let mut plans = Vec::new();
+    for u in &mut units {
+        let base = propose::release_from_unit(u);
+        let mut best: Option<(propose::ReleaseInfo, Vec<Option<usize>>)> = None;
+        if !offline && u.kind != Kind::Audiobook {
+            match ident.identify(u, 3, &progress) {
+                Ok(cands) => {
+                    for n in cands.first().map(|c| c.notes.clone()).unwrap_or_default() {
+                        eprintln!("note: {n}");
+                    }
+                    if let Some(c) = cands.into_iter().next() {
+                        if c.release.score >= 50 {
+                            let mut rel = c.release;
+                            if let Err(e) = ident.fetch_cover(&mut rel) {
+                                eprintln!("note: cover: {e}");
+                            }
+                            if rel.cover.is_none() {
+                                rel.cover = base.cover.clone();
+                            }
+                            u.kind = tagjoe_core::sources::identify::kind_from_release(&rel, u.kind);
+                            best = Some((rel, c.matched));
+                        } else {
+                            eprintln!("note: best candidate scored only {} – using tags", c.release.score);
+                        }
+                    }
+                }
+                Err(e) => eprintln!("note: identification failed: {e}"),
+            }
+        }
+        let (rel, matched) = best.unwrap_or_else(|| (base, propose::identity_match(u.files.len())));
+        plans.push(propose::build_plan(u, &rel, &matched, cfg));
+    }
+    Ok(plans)
+}
+
+fn cmd_identify(folder: &Path, cfg: &Config, kind: Option<&String>, json: bool) -> Result<(), String> {
+    let mut units = scan::scan_path(folder).map_err(|e| e.to_string())?;
+    apply_kind(&mut units, kind)?;
+    let http = http(cfg, false);
+    let ident = Identifier { http: &http, cfg };
+    for u in &units {
+        outln!("== {}  [{}]  {} files", u.path.display(), u.kind.label(), u.files.len());
+        let cands = ident.identify(u, 5, &progress).map_err(|e| e.to_string())?;
+        if json {
+            let v: Vec<_> = cands.iter().map(|c| serde_json::json!({"score": c.release.score, "summary": c.release.summary, "album": c.release.album, "matched": c.matched, "by_fingerprint": c.by_fingerprint, "by_heuristic": c.by_heuristic, "notes": c.notes})).collect();
+            outln!("{}", serde_json::to_string_pretty(&v).unwrap());
+            continue;
+        }
+        for n in cands.first().map(|c| c.notes.clone()).unwrap_or_default() {
+            outln!("   note: {n}");
+        }
+        for c in &cands {
+            let m = c.matched.iter().filter(|x| x.is_some()).count();
+            outln!("   {:>3}%  {}  [{}]  matched {m}/{} (fingerprint {}, heuristic {})", c.release.score, c.release.summary, c.release.album.get(&tagjoe_core::Field::MbReleaseId).cloned().unwrap_or_default(), u.files.len(), c.by_fingerprint, c.by_heuristic);
+        }
+        if cands.is_empty() {
+            outln!("   no candidates");
+        }
+    }
+    Ok(())
 }
 
 fn print_plan(p: &Plan, clean_only: bool) {
@@ -180,7 +255,7 @@ fn main() -> ExitCode {
     let cfg = load_config(cli.config.as_ref());
     let r = match &cli.cmd {
         Cmd::Scan { folder } => cmd_scan(folder, &cfg, cli.kind.as_ref(), cli.json),
-        Cmd::Propose { folder } | Cmd::Clean { folder } => build_plans(folder, &cfg, cli.kind.as_ref()).map(|plans| {
+        Cmd::Propose { folder } | Cmd::Clean { folder } => build_plans(folder, &cfg, cli.kind.as_ref(), cli.offline || matches!(cli.cmd, Cmd::Clean { .. })).map(|plans| {
             if cli.json {
                 outln!("{}", serde_json::to_string_pretty(&plans).unwrap());
             } else {
@@ -189,6 +264,7 @@ fn main() -> ExitCode {
                 }
             }
         }),
+        Cmd::Identify { folder } => cmd_identify(folder, &cfg, cli.kind.as_ref(), cli.json),
         Cmd::Preview { format, file } => (|| {
             let info = scan::read_file(file).map_err(|e| e.to_string())?;
             let t = Template::parse(format).map_err(|e| e.to_string())?;

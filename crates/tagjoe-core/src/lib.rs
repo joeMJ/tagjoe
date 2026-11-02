@@ -9,6 +9,7 @@ pub mod naming;
 pub mod propose;
 pub mod scan;
 pub mod schema;
+pub mod sources;
 
 pub use config::Config;
 pub use model::{Field, FileInfo, Kind, Unit};
