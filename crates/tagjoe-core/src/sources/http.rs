@@ -140,6 +140,39 @@ impl Http {
         }
     }
 
+    /// POST a JSON body with extra headers (cached like a GET by url + body).
+    pub fn post_json(&self, url: &str, body: &str, headers: &[(&str, &str)]) -> Result<serde_json::Value> {
+        let cache_url = format!("{url}#{}", cache_key(body));
+        if let Some(b) = self.cache_read(&cache_url, "json") {
+            return serde_json::from_slice(&b).map_err(|e| SourceError::Parse { url: url.into(), msg: e.to_string() });
+        }
+        if self.offline {
+            return Err(SourceError::Http { url: url.into(), msg: "offline".into() });
+        }
+        let host = host_of(url);
+        let mut attempt = 0;
+        loop {
+            self.wait_turn(&host);
+            let mut req = self.client.post(url).header("Accept", "application/json").header("Content-Type", "application/json").body(body.to_string());
+            for (k, v) in headers {
+                req = req.header(*k, *v);
+            }
+            let resp = req.send().map_err(|e| SourceError::Http { url: url.into(), msg: e.to_string() })?;
+            let status = resp.status().as_u16();
+            if (status == 503 || status == 429) && attempt < 4 {
+                attempt += 1;
+                std::thread::sleep(Duration::from_millis(2000 * attempt as u64));
+                continue;
+            }
+            if !(200..300).contains(&status) {
+                return Err(SourceError::Status { url: url.into(), status });
+            }
+            let b = resp.bytes().map_err(|e| SourceError::Http { url: url.into(), msg: e.to_string() })?.to_vec();
+            self.cache_write(&cache_url, "json", &b);
+            return serde_json::from_slice(&b).map_err(|e| SourceError::Parse { url: url.into(), msg: e.to_string() });
+        }
+    }
+
     pub fn get_json(&self, url: &str, headers: &[(&str, &str)]) -> Result<serde_json::Value> {
         let mut h: Vec<(&str, &str)> = vec![("Accept", "application/json")];
         h.extend_from_slice(headers);

@@ -44,8 +44,20 @@ impl AudiobookDb<'_> {
         if self.key.trim().is_empty() { vec![] } else { vec![("X-API-Key", self.key.trim())] }
     }
 
-    /// Title search ("contains", case-insensitive).
+    /// Title search. With an API key: full-text search (`POST /search`, title and author words);
+    /// without: anonymous "title contains" list (`GET /books?q=`).
     pub fn search(&self, title: &str, take: u32) -> Result<Vec<BookHit>> {
+        if !self.key.trim().is_empty() {
+            let body = serde_json::json!({ "q": title.trim(), "type": "books" }).to_string();
+            let h = self.headers();
+            match self.http.post_json(&format!("{}/search", self.base), &body, &h) {
+                Ok(v) => return Ok(parse_hits(&v)),
+                Err(e) => {
+                    // fall back to the anonymous list search
+                    let _ = e;
+                }
+            }
+        }
         let url = format!("{}/books?q={}&take={take}", self.base, enc(title.trim()));
         let v = self.http.get_json(&url, &self.headers())?;
         Ok(parse_hits(&v))
@@ -81,7 +93,15 @@ pub fn parse_hits(v: &serde_json::Value) -> Vec<BookHit> {
         .map(|b| BookHit {
             id: s(b, "id"),
             title: s(b, "title"),
-            authors: b.get("authors").and_then(|a| a.as_array()).into_iter().flatten().map(|a| if a.is_string() { a.as_str().unwrap_or("").to_string() } else { s(a, "name") }).filter(|n| !n.is_empty()).collect(),
+            authors: b
+                .get("authors")
+                .or(b.get("people"))
+                .and_then(|a| a.as_array())
+                .into_iter()
+                .flatten()
+                .map(|a| if a.is_string() { a.as_str().unwrap_or("").to_string() } else if let Some(p) = a.get("person") { s(p, "name") } else { s(a, "name") })
+                .filter(|n| !n.is_empty())
+                .collect(),
             release_count: b.get("releaseCount").and_then(|c| c.as_u64()).unwrap_or(0),
         })
         .collect()
