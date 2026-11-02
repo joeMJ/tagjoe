@@ -160,7 +160,7 @@ pub fn parse_release(v: &serde_json::Value) -> ReleaseInfo {
             genres.push((g.get("count").and_then(|c| c.as_u64()).unwrap_or(0), s(g, "name")));
         }
     }
-    genres.sort_by(|a, b| b.0.cmp(&a.0));
+    genres.sort_by_key(|g| std::cmp::Reverse(g.0));
     if let Some((_, g)) = genres.first() {
         if !g.is_empty() && !album.contains_key(&Field::Genre) {
             album.insert(Field::Genre, capitalize(g));

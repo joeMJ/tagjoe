@@ -7,6 +7,7 @@ use lofty::file::{AudioFile, FileType};
 use lofty::id3::v1::Id3v1Tag;
 use lofty::id3::v2::{Frame, Id3v2Tag};
 use lofty::mp4::{AtomData, AtomIdent, Ilst};
+use lofty::ogg::OggPictureStorage;
 use lofty::ogg::tag::VorbisComments;
 use lofty::properties::FileProperties;
 use lofty::tag::{ItemValue, Tag, TagType};
@@ -70,26 +71,8 @@ impl Container {
         match self {
             Container::Id3v2(tag) => {
                 for frame in tag {
-                    let id = frame.id().as_str().to_string();
-                    match frame {
-                        Frame::Text(f) => out.push((id, f.value.to_string())),
-                        Frame::UserText(f) => out.push((format!("TXXX:{}", f.description), f.content.to_string())),
-                        Frame::Comment(f) => {
-                            let name = if f.description.is_empty() { "COMM".to_string() } else { format!("COMM:{}", f.description) };
-                            out.push((name, f.content.to_string()))
-                        }
-                        Frame::UnsynchronizedText(f) => out.push(("USLT".into(), f.content.to_string())),
-                        Frame::Url(f) => out.push((id, f.url().to_string())),
-                        Frame::UserUrl(f) => out.push((format!("WXXX:{}", f.description), f.content.to_string())),
-                        Frame::UniqueFileIdentifier(f) => out.push((format!("UFID:{}", f.owner), String::from_utf8_lossy(&f.identifier).to_string())),
-                        Frame::Private(f) => out.push((format!("PRIV:{}", f.owner), format!("<binary {} bytes>", f.private_data.len()))),
-                        Frame::KeyValue(f) => out.push((id, f.key_value_pairs.iter().map(|(k, v)| format!("{k}={v}")).collect::<Vec<_>>().join("; "))),
-                        Frame::Popularimeter(f) => out.push(("POPM".into(), format!("{} rating {}", f.email, f.rating))),
-                        Frame::Picture(_) => {}
-                        Frame::Chapter(_) => out.push(("CHAP".into(), "<chapter>".into())),
-                        Frame::TableOfContents(_) => out.push(("CTOC".into(), "<table of contents>".into())),
-                        Frame::Binary(f) => out.push((id, format!("<binary {} bytes>", f.data.len()))),
-                        _ => out.push((id, "<data>".into())),
+                    if let Some(e) = frame_entry(frame) {
+                        out.push(e);
                     }
                 }
             }
@@ -122,10 +105,7 @@ impl Container {
             }
             Container::Ilst(t) => {
                 for atom in t {
-                    let name = match atom.ident() {
-                        AtomIdent::Fourcc(b) => b.iter().map(|&c| c as char).collect::<String>(),
-                        AtomIdent::Freeform { mean, name } => format!("----:{mean}:{name}"),
-                    };
+                    let name = atom_name(atom);
                     if STRUCTURAL.contains(&name.as_str()) {
                         continue;
                     }
@@ -157,6 +137,39 @@ impl Container {
     }
 }
 
+/// Raw name and text of an ID3v2 frame (None for pictures).
+pub fn frame_entry(frame: &Frame<'_>) -> Option<(String, String)> {
+    let id = frame.id().as_str().to_string();
+    Some(match frame {
+        Frame::Text(f) => (id, f.value.to_string()),
+        Frame::UserText(f) => (format!("TXXX:{}", f.description), f.content.to_string()),
+        Frame::Comment(f) => {
+            let name = if f.description.is_empty() { "COMM".to_string() } else { format!("COMM:{}", f.description) };
+            (name, f.content.to_string())
+        }
+        Frame::UnsynchronizedText(f) => ("USLT".into(), f.content.to_string()),
+        Frame::Url(f) => (id, f.url().to_string()),
+        Frame::UserUrl(f) => (format!("WXXX:{}", f.description), f.content.to_string()),
+        Frame::UniqueFileIdentifier(f) => (format!("UFID:{}", f.owner), String::from_utf8_lossy(&f.identifier).to_string()),
+        Frame::Private(f) => (format!("PRIV:{}", f.owner), format!("<binary {} bytes>", f.private_data.len())),
+        Frame::KeyValue(f) => (id, f.key_value_pairs.iter().map(|(k, v)| format!("{k}={v}")).collect::<Vec<_>>().join("; ")),
+        Frame::Popularimeter(f) => ("POPM".into(), format!("{} rating {}", f.email, f.rating)),
+        Frame::Picture(_) => return None,
+        Frame::Chapter(_) => ("CHAP".into(), "<chapter>".into()),
+        Frame::TableOfContents(_) => ("CTOC".into(), "<table of contents>".into()),
+        Frame::Binary(f) => (id, format!("<binary {} bytes>", f.data.len())),
+        _ => (id, "<data>".into()),
+    })
+}
+
+/// Raw name of an MP4 atom (`©nam`, `----:com.apple.iTunes:NAME`).
+pub fn atom_name(atom: &lofty::mp4::Atom<'_>) -> String {
+    match atom.ident() {
+        AtomIdent::Fourcc(b) => b.iter().map(|&c| c as char).collect::<String>(),
+        AtomIdent::Freeform { mean, name } => format!("----:{mean}:{name}"),
+    }
+}
+
 macro_rules! load_as {
     ($ty:ty, $file:expr, $push:expr) => {{
         let f = <$ty>::read_from($file, ParseOptions::new()).map_err(|e| e.to_string())?;
@@ -182,7 +195,12 @@ pub fn load(path: &Path) -> Result<Loaded, String> {
         }),
         FileType::Flac => load_as!(lofty::flac::FlacFile, file, |f: &lofty::flac::FlacFile| {
             let mut v = Vec::new();
-            if let Some(t) = f.vorbis_comments() { v.push(Container::Vorbis(t.clone())) }
+            // FLAC keeps pictures in their own blocks; fold them into the comments so one container holds all
+            let mut vc = f.vorbis_comments().cloned().unwrap_or_default();
+            for (p, info) in f.pictures() {
+                let _ = vc.insert_picture(p.clone(), Some(*info));
+            }
+            v.push(Container::Vorbis(vc));
             if let Some(t) = f.id3v2() { v.push(Container::Id3v2(t.clone())) }
             v
         }),

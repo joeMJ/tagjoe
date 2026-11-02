@@ -201,7 +201,7 @@ impl Identifier<'_> {
 
         // 2. candidate releases: voted by AcoustID, plus search by tags/folder
         let mut candidates: Vec<(String, usize)> = release_votes.into_iter().collect();
-        candidates.sort_by(|a, b| b.1.cmp(&a.1));
+        candidates.sort_by_key(|c| std::cmp::Reverse(c.1));
         candidates.truncate(8);
         let base = crate::propose::release_from_unit(unit);
         let album = base.album.get(&Field::Album).cloned().unwrap_or_default();
@@ -243,7 +243,7 @@ impl Identifier<'_> {
             release.score = score_candidate(unit, &release, &matched, by_fp);
             out.push(Identified { release, matched, by_fingerprint: by_fp, by_heuristic: by_heur, notes: vec![] });
         }
-        out.sort_by(|a, b| b.release.score.cmp(&a.release.score));
+        out.sort_by_key(|c| std::cmp::Reverse(c.release.score));
         out.truncate(max_candidates.max(1));
         if let Some(first) = out.first_mut() {
             first.notes = notes;

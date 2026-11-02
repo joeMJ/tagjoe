@@ -1,9 +1,11 @@
 //! tagjoe core: scan folders, check every tag field, propose and apply fixes.
 #![forbid(unsafe_code)]
 
+pub mod apply;
 pub mod classify;
 pub mod config;
 pub mod containers;
+pub mod journal;
 pub mod model;
 pub mod naming;
 pub mod propose;

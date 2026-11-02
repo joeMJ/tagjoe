@@ -44,8 +44,27 @@ enum Cmd {
     Scan { folder: PathBuf },
     /// Build the change plan (tags, cover, names) without writing anything
     Propose { folder: PathBuf },
-    /// Show what "clean" would remove (foreign fields, secondary containers)
-    Clean { folder: PathBuf },
+    /// Remove foreign fields and secondary containers only (no renaming, no source lookup)
+    Clean {
+        folder: PathBuf,
+        /// Write without asking
+        #[arg(long, short = 'y')]
+        yes: bool,
+    },
+    /// Apply the plan: write tags and covers, rename files (asks first unless --yes)
+    Apply {
+        folder: PathBuf,
+        /// Write without asking
+        #[arg(long, short = 'y')]
+        yes: bool,
+    },
+    /// Undo a run from its journal ("latest" or a journal file); --list shows journals
+    Undo {
+        /// Journal file or "latest"
+        journal: Option<String>,
+        #[arg(long)]
+        list: bool,
+    },
     /// Identify a folder online and list the candidate releases
     Identify { folder: PathBuf },
     /// Render a name template for a file
@@ -218,6 +237,101 @@ fn cmd_identify(folder: &Path, cfg: &Config, kind: Option<&String>, json: bool) 
     Ok(())
 }
 
+fn confirm(question: &str) -> bool {
+    eprint!("{question} [y/N] ");
+    let mut line = String::new();
+    if std::io::stdin().read_line(&mut line).is_err() {
+        return false;
+    }
+    matches!(line.trim(), "y" | "Y" | "yes" | "j" | "J" | "ja")
+}
+
+/// Reduce a plan to removals only.
+fn clean_only_plan(mut p: Plan) -> Plan {
+    p.new_folder = None;
+    for f in &mut p.files {
+        f.new_name = None;
+        f.changes.clear();
+        f.cover = None;
+    }
+    p
+}
+
+fn print_result(r: &tagjoe_core::apply::ApplyResult) {
+    for f in &r.files {
+        let name = f.path.file_name().map(|s| s.to_string_lossy().to_string()).unwrap_or_else(|| f.path.display().to_string());
+        if f.ok {
+            outln!("   ok   {name}: {}", f.message);
+        } else {
+            outln!("   FAIL {name}: {}", f.message);
+        }
+    }
+    if let Some((a, b)) = &r.folder {
+        outln!("   folder {} -> {}", a.display(), b.display());
+    }
+    if let Some(j) = &r.journal {
+        outln!("   journal: {}", j.display());
+    }
+    if r.errors > 0 {
+        outln!("   {} error(s)", r.errors);
+    }
+}
+
+fn cmd_apply(plans: Vec<Plan>, cfg: &Config, yes: bool, clean: bool) -> Result<(), String> {
+    let plans: Vec<Plan> = plans.into_iter().map(|p| if clean { clean_only_plan(p) } else { p }).collect();
+    for p in &plans {
+        print_plan(p, clean);
+    }
+    let todo: Vec<&Plan> = plans.iter().filter(|p| !p.is_noop()).collect();
+    if todo.is_empty() {
+        outln!("nothing to do");
+        return Ok(());
+    }
+    let n_files: usize = todo.iter().map(|p| p.files.iter().filter(|f| !f.is_noop()).count()).sum();
+    if !yes && !confirm(&format!("Write {n_files} file(s) in {} folder(s)?", todo.len())) {
+        outln!("cancelled");
+        return Ok(());
+    }
+    let jdir = tagjoe_core::config::journal_dir();
+    let mut errors = 0;
+    for p in todo {
+        outln!("== {}", p.unit.display());
+        let r = tagjoe_core::apply::apply(p, cfg, &jdir);
+        errors += r.errors;
+        print_result(&r);
+    }
+    if errors > 0 { Err(format!("{errors} error(s)")) } else { Ok(()) }
+}
+
+fn cmd_undo(journal: Option<&String>, list: bool, cfg: &Config) -> Result<(), String> {
+    let jdir = tagjoe_core::config::journal_dir();
+    let journals = tagjoe_core::journal::Journal::list(&jdir);
+    if list || journal.is_none() {
+        if journals.is_empty() {
+            outln!("no journals in {}", jdir.display());
+        }
+        for j in &journals {
+            let name = j.file_name().map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
+            match tagjoe_core::journal::Journal::load(j) {
+                Ok(jr) => outln!("   {name}  {} ({} files)", jr.unit.display(), jr.entries.len()),
+                Err(e) => outln!("   {name}  (unreadable: {e})"),
+            }
+        }
+        return Ok(());
+    }
+    let j = journal.unwrap();
+    let path = if j == "latest" { journals.first().cloned().ok_or("no journals")? } else { PathBuf::from(j) };
+    let jr = tagjoe_core::journal::Journal::load(&path).map_err(|e| e.to_string())?;
+    outln!("== undo {} ({} files)", jr.unit.display(), jr.entries.len());
+    let r = tagjoe_core::apply::undo(&jr, cfg);
+    print_result(&r);
+    if r.errors == 0 {
+        let done = path.with_extension("json.undone");
+        let _ = std::fs::rename(&path, &done);
+    }
+    if r.errors > 0 { Err(format!("{} error(s)", r.errors)) } else { Ok(()) }
+}
+
 fn print_plan(p: &Plan, clean_only: bool) {
     outln!("== {}  [{}]  source: {}", p.unit.display(), p.kind.label(), p.source);
     if let Some(nf) = &p.new_folder {
@@ -255,16 +369,19 @@ fn main() -> ExitCode {
     let cfg = load_config(cli.config.as_ref());
     let r = match &cli.cmd {
         Cmd::Scan { folder } => cmd_scan(folder, &cfg, cli.kind.as_ref(), cli.json),
-        Cmd::Propose { folder } | Cmd::Clean { folder } => build_plans(folder, &cfg, cli.kind.as_ref(), cli.offline || matches!(cli.cmd, Cmd::Clean { .. })).map(|plans| {
+        Cmd::Propose { folder } => build_plans(folder, &cfg, cli.kind.as_ref(), cli.offline).map(|plans| {
             if cli.json {
                 outln!("{}", serde_json::to_string_pretty(&plans).unwrap());
             } else {
                 for p in &plans {
-                    print_plan(p, matches!(cli.cmd, Cmd::Clean { .. }));
+                    print_plan(p, false);
                 }
             }
         }),
         Cmd::Identify { folder } => cmd_identify(folder, &cfg, cli.kind.as_ref(), cli.json),
+        Cmd::Clean { folder, yes } => build_plans(folder, &cfg, cli.kind.as_ref(), true).and_then(|plans| cmd_apply(plans, &cfg, *yes, true)),
+        Cmd::Apply { folder, yes } => build_plans(folder, &cfg, cli.kind.as_ref(), cli.offline).and_then(|plans| cmd_apply(plans, &cfg, *yes, false)),
+        Cmd::Undo { journal, list } => cmd_undo(journal.as_ref(), *list, &cfg),
         Cmd::Preview { format, file } => (|| {
             let info = scan::read_file(file).map_err(|e| e.to_string())?;
             let t = Template::parse(format).map_err(|e| e.to_string())?;
