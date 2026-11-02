@@ -2,6 +2,9 @@
 //! MusicBrainz, Cover Art Archive, and the identification pipeline.
 
 pub mod acoustid;
+pub mod audiobookdb;
+pub mod audnexus;
+pub mod books;
 pub mod caa;
 pub mod fingerprint;
 pub mod http;

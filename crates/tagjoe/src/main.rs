@@ -11,6 +11,7 @@ use tagjoe_core::naming::{Context, Template};
 use tagjoe_core::propose::{self, Plan};
 use tagjoe_core::scan;
 use tagjoe_core::sources::http::Http;
+use tagjoe_core::sources::books::BookIdentifier;
 use tagjoe_core::sources::identify::Identifier;
 use tagjoe_core::schema::{self, Status};
 
@@ -179,8 +180,33 @@ fn build_plans(folder: &Path, cfg: &Config, kind: Option<&String>, offline: bool
     let ident = Identifier { http: &http, cfg };
     let mut plans = Vec::new();
     for u in &mut units {
-        let base = propose::release_from_unit(u);
+        let (base, base_match) = if u.kind == Kind::Audiobook { tagjoe_core::sources::books::offline_release(u, cfg) } else { let b = propose::release_from_unit(u); let m = propose::identity_match(u.files.len()); (b, m) };
         let mut best: Option<(propose::ReleaseInfo, Vec<Option<usize>>)> = None;
+        if !offline && u.kind == Kind::Audiobook {
+            let bi = BookIdentifier { http: &http, cfg };
+            match bi.identify(u, 3, &progress) {
+                Ok(cands) => {
+                    for n in cands.first().map(|c| c.notes.clone()).unwrap_or_default() {
+                        eprintln!("note: {n}");
+                    }
+                    if let Some(c) = cands.into_iter().next() {
+                        if c.release.score >= 50 {
+                            let mut rel = c.release;
+                            if let Err(e) = ident.fetch_cover(&mut rel) {
+                                eprintln!("note: cover: {e}");
+                            }
+                            if rel.cover.is_none() {
+                                rel.cover = base.cover.clone();
+                            }
+                            best = Some((rel, c.matched));
+                        } else {
+                            eprintln!("note: best audiobook candidate scored only {} – using tags and folder names", c.release.score);
+                        }
+                    }
+                }
+                Err(e) => eprintln!("note: audiobook identification failed: {e}"),
+            }
+        }
         if !offline && u.kind != Kind::Audiobook {
             match ident.identify(u, 3, &progress) {
                 Ok(cands) => {
@@ -206,7 +232,7 @@ fn build_plans(folder: &Path, cfg: &Config, kind: Option<&String>, offline: bool
                 Err(e) => eprintln!("note: identification failed: {e}"),
             }
         }
-        let (rel, matched) = best.unwrap_or_else(|| (base, propose::identity_match(u.files.len())));
+        let (rel, matched) = best.unwrap_or_else(|| (base, base_match));
         plans.push(propose::build_plan(u, &rel, &matched, cfg));
     }
     Ok(plans)
@@ -219,7 +245,7 @@ fn cmd_identify(folder: &Path, cfg: &Config, kind: Option<&String>, json: bool) 
     let ident = Identifier { http: &http, cfg };
     for u in &units {
         outln!("== {}  [{}]  {} files", u.path.display(), u.kind.label(), u.files.len());
-        let cands = ident.identify(u, 5, &progress).map_err(|e| e.to_string())?;
+        let cands = if u.kind == Kind::Audiobook { BookIdentifier { http: &http, cfg }.identify(u, 5, &progress) } else { ident.identify(u, 5, &progress) }.map_err(|e| e.to_string())?;
         if json {
             let v: Vec<_> = cands.iter().map(|c| serde_json::json!({"score": c.release.score, "summary": c.release.summary, "album": c.release.album, "matched": c.matched, "by_fingerprint": c.by_fingerprint, "by_heuristic": c.by_heuristic, "notes": c.notes})).collect();
             outln!("{}", serde_json::to_string_pretty(&v).unwrap());
@@ -230,7 +256,8 @@ fn cmd_identify(folder: &Path, cfg: &Config, kind: Option<&String>, json: bool) 
         }
         for c in &cands {
             let m = c.matched.iter().filter(|x| x.is_some()).count();
-            outln!("   {:>3}%  {}  [{}]  matched {m}/{} (fingerprint {}, heuristic {})", c.release.score, c.release.summary, c.release.album.get(&tagjoe_core::Field::MbReleaseId).cloned().unwrap_or_default(), u.files.len(), c.by_fingerprint, c.by_heuristic);
+            let id = c.release.album.get(&tagjoe_core::Field::MbReleaseId).or(c.release.album.get(&tagjoe_core::Field::Asin)).cloned().unwrap_or_default();
+            outln!("   {:>3}%  {}  [{} {id}]  matched {m}/{} (fingerprint {}, heuristic {})", c.release.score, c.release.summary, c.release.source, u.files.len(), c.by_fingerprint, c.by_heuristic);
         }
         if cands.is_empty() {
             outln!("   no candidates");

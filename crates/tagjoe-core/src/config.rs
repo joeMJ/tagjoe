@@ -109,9 +109,26 @@ impl Default for Sources {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Audiobook {
+    /// Title for chapters without a name; `{chapter}` and `{chaptertotal}` are available.
+    pub chapter_title: String,
+    /// Audible regions to try on Audnexus, in order.
+    pub audnexus_regions: Vec<String>,
+    /// Preferred release language on AudiobookDB (release pick when a book has several).
+    pub language: String,
+}
+impl Default for Audiobook {
+    fn default() -> Self {
+        Self { chapter_title: "Kapitel {chapter}".into(), audnexus_regions: vec!["de".into(), "us".into(), "uk".into()], language: "German".into() }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 #[serde(default)]
 pub struct Config {
+    pub audiobook: Audiobook,
     pub templates: Templates,
     pub numbering: Numbering,
     pub tags: TagOptions,

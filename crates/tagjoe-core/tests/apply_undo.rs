@@ -18,7 +18,9 @@ fn temp_copy(name: &str) -> PathBuf {
     let unit = dir.join("Fixture Album");
     std::fs::create_dir_all(&unit).unwrap();
     for e in std::fs::read_dir(fixtures()).unwrap().flatten() {
-        std::fs::copy(e.path(), unit.join(e.file_name())).unwrap();
+        if e.path().is_file() {
+            std::fs::copy(e.path(), unit.join(e.file_name())).unwrap();
+        }
     }
     unit
 }

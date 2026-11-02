@@ -57,6 +57,10 @@ pub fn classify(unit: &Unit) -> Kind {
     Kind::Album
 }
 
+pub fn looks_like_chapter_pub(title: &str) -> bool {
+    looks_like_chapter(title)
+}
+
 fn looks_like_chapter(title: &str) -> bool {
     let t = title.trim().to_lowercase();
     for w in ["kapitel", "chapter", "track", "teil", "part"] {
