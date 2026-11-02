@@ -76,6 +76,8 @@ enum Cmd {
     },
     /// Print the effective configuration (TOML)
     Config,
+    /// List every raw tag entry of a file, per container (debugging)
+    Raw { file: PathBuf },
 }
 
 fn load_config(path: Option<&PathBuf>) -> Config {
@@ -400,6 +402,18 @@ fn main() -> ExitCode {
             outln!("{}", cfg.to_toml());
             Ok(())
         }
+        Cmd::Raw { file } => tagjoe_core::containers::load(file).map(|l| {
+            outln!("{} · {:?}", file.display(), l.file_type);
+            for c in &l.containers {
+                outln!("-- {:?}", c.tag_type());
+                for (k, v) in c.raw_entries() {
+                    outln!("   {k:<40} {}", truncate(&v, 90));
+                }
+                for p in c.to_generic().pictures() {
+                    outln!("   <picture {:?} {} bytes>", p.pic_type(), p.data().len());
+                }
+            }
+        }),
     };
     match r {
         Ok(()) => ExitCode::SUCCESS,

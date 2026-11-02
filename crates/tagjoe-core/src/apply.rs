@@ -102,6 +102,10 @@ pub fn set_field(c: Container, field: Field, value: &str) -> Container {
                 g.insert_text(k, value.clone());
             }
         }
+        if field == Field::Date {
+            // a stale YEAR next to DATE would contradict the new value
+            g.remove_key(ItemKey::Year);
+        }
         if narrator {
             // Audiobookshelf / Plex read the narrator from the composer frame
             g.remove_key(ItemKey::Composer);
@@ -186,7 +190,7 @@ pub fn insert_raw(c: Container, key: &str, value: &str) -> (Container, bool) {
                 t.insert_user_text(desc.to_string(), value.to_string());
                 (Container::Id3v2(t), true)
             } else if key.starts_with("COMM") {
-                (edit_generic(Container::Id3v2(t), |g| g.insert_text(ItemKey::Comment, value.to_string()).then_some(()).unwrap_or(())), true)
+                (edit_generic(Container::Id3v2(t), |g| { g.insert_text(ItemKey::Comment, value.to_string()); }), true)
             } else if let Some(k) = ItemKey::from_key(TagType::Id3v2, key) {
                 (edit_generic(Container::Id3v2(t), |g| { g.insert_text(k, value.to_string()); }), true)
             } else {
