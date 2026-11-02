@@ -464,7 +464,7 @@ fn update(app: &mut App, msg: Message) -> Task<Message> {
                     settings::Outcome::Keep => {}
                     settings::Outcome::Close => close = true,
                     settings::Outcome::Save(cfg) => {
-                        save = Some(cfg);
+                        save = Some(*cfg);
                         close = true;
                     }
                 }

@@ -63,7 +63,7 @@ pub enum SettingsMessage {
 pub enum Outcome {
     Keep,
     Close,
-    Save(Config),
+    Save(Box<Config>),
 }
 
 impl SettingsState {
@@ -134,7 +134,7 @@ impl SettingsState {
             M::Reset => {
                 *self = SettingsState::new(Config::default());
             }
-            M::Save => return Outcome::Save(self.cfg.clone()),
+            M::Save => return Outcome::Save(Box::new(self.cfg.clone())),
             M::Close => return Outcome::Close,
         }
         Outcome::Keep

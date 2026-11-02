@@ -26,7 +26,7 @@ msgstr "Schon in der Warteschlange"
 
 #: crates/tagjoe-gui/src/main.rs:252
 msgid "starting"
-msgstr ""
+msgstr "startet"
 
 #: crates/tagjoe-gui/src/main.rs:258
 msgid "Added"
@@ -34,7 +34,7 @@ msgstr "Hinzugefügt"
 
 #: crates/tagjoe-gui/src/main.rs:393
 msgid "Cover: enter an image file path or an http(s) URL."
-msgstr ""
+msgstr "Cover: Pfad einer Bilddatei oder eine http(s)-URL eingeben."
 
 #: crates/tagjoe-gui/src/main.rs:405 crates/tagjoe-gui/src/view.rs:200
 msgid "Cover"
@@ -70,7 +70,7 @@ msgstr "Einstellungen gespeichert."
 
 #: crates/tagjoe-gui/src/main.rs:475
 msgid "Cannot save settings"
-msgstr ""
+msgstr "Einstellungen können nicht gespeichert werden"
 
 #: crates/tagjoe-gui/src/main.rs:503 crates/tagjoe-gui/src/view.rs:70
 msgid "tagjoe"
@@ -130,11 +130,11 @@ msgstr "Ordner umbenennen (aus, wenn Jellyfin oder Plex die Struktur vorgeben)"
 
 #: crates/tagjoe-gui/src/settings.rs:225
 msgid "Preset: Jellyfin/Plex"
-msgstr ""
+msgstr "Vorgabe: Jellyfin/Plex"
 
 #: crates/tagjoe-gui/src/settings.rs:225
 msgid "Preset: flat"
-msgstr ""
+msgstr "Vorgabe: flach"
 
 #: crates/tagjoe-gui/src/settings.rs:226 crates/tagjoe-gui/src/view.rs:23
 #: crates/tagjoe-gui/src/view.rs:330
@@ -165,7 +165,7 @@ msgstr "CD-Segment im Namen (CD2 von 2 - 03 von 12)"
 
 #: crates/tagjoe-gui/src/settings.rs:233
 msgid "Disc segment"
-msgstr ""
+msgstr "CD-Segment"
 
 #: crates/tagjoe-gui/src/settings.rs:234
 msgid "Pad numbers to the width of the total (03 of 12, 007 of 120)"
@@ -180,7 +180,7 @@ msgstr ""
 
 #: crates/tagjoe-gui/src/settings.rs:238
 msgid "SYNTAX"
-msgstr ""
+msgstr "SYNTAX"
 
 #: crates/tagjoe-gui/src/settings.rs:238
 #, no-c-format
@@ -195,7 +195,7 @@ msgstr ""
 
 #: crates/tagjoe-gui/src/settings.rs:241
 msgid "MUSICBRAINZ AND ACOUSTID"
-msgstr ""
+msgstr "MUSICBRAINZ UND ACOUSTID"
 
 #: crates/tagjoe-gui/src/settings.rs:242
 msgid ""
@@ -207,11 +207,11 @@ msgstr ""
 
 #: crates/tagjoe-gui/src/settings.rs:243
 msgid "AcoustID application key"
-msgstr ""
+msgstr "AcoustID-Anwendungsschlüssel"
 
 #: crates/tagjoe-gui/src/settings.rs:245
 msgid "DISCOGS"
-msgstr ""
+msgstr "DISCOGS"
 
 #: crates/tagjoe-gui/src/settings.rs:246
 msgid ""
@@ -221,11 +221,11 @@ msgstr ""
 
 #: crates/tagjoe-gui/src/settings.rs:247
 msgid "Discogs token"
-msgstr ""
+msgstr "Discogs-Token"
 
 #: crates/tagjoe-gui/src/settings.rs:249
 msgid "AUDIOBOOKS"
-msgstr ""
+msgstr "HÖRBÜCHER"
 
 #: crates/tagjoe-gui/src/settings.rs:250
 msgid ""
@@ -236,19 +236,19 @@ msgstr ""
 
 #: crates/tagjoe-gui/src/settings.rs:251
 msgid "AudiobookDB API key"
-msgstr ""
+msgstr "AudiobookDB-API-Schlüssel"
 
 #: crates/tagjoe-gui/src/settings.rs:253
 msgid "CACHE"
-msgstr ""
+msgstr "ZWISCHENSPEICHER"
 
 #: crates/tagjoe-gui/src/settings.rs:253
 msgid "Keep responses for (days)"
-msgstr ""
+msgstr "Antworten aufbewahren (Tage)"
 
 #: crates/tagjoe-gui/src/settings.rs:256
 msgid "FOREIGN FIELDS"
-msgstr ""
+msgstr "FREMDE FELDER"
 
 #: crates/tagjoe-gui/src/settings.rs:257
 msgid ""
@@ -259,47 +259,47 @@ msgstr ""
 
 #: crates/tagjoe-gui/src/settings.rs:258
 msgid "one pattern per line"
-msgstr ""
+msgstr "ein Muster je Zeile"
 
 #: crates/tagjoe-gui/src/settings.rs:260
 msgid "Remove ID3v1 and APE containers from MP3 files (ID3v2 stays)"
-msgstr ""
+msgstr "ID3v1- und APE-Container aus MP3-Dateien entfernen (ID3v2 bleibt)"
 
 #: crates/tagjoe-gui/src/settings.rs:260
 msgid "SECONDARY CONTAINERS"
-msgstr ""
+msgstr "ZWEITCONTAINER"
 
 #: crates/tagjoe-gui/src/settings.rs:263
 msgid "ID3"
-msgstr ""
+msgstr "ID3"
 
 #: crates/tagjoe-gui/src/settings.rs:264
 msgid "ID3v2.4 (UTF-8, standard)"
-msgstr ""
+msgstr "ID3v2.4 (UTF-8, Standard)"
 
 #: crates/tagjoe-gui/src/settings.rs:265
 msgid "ID3v2.3 (older Windows software)"
-msgstr ""
+msgstr "ID3v2.3 (ältere Windows-Programme)"
 
 #: crates/tagjoe-gui/src/settings.rs:267
 msgid "COVER"
-msgstr ""
+msgstr "COVER"
 
 #: crates/tagjoe-gui/src/settings.rs:268
 msgid "Scale embedded covers down to (px)"
-msgstr ""
+msgstr "Eingebettete Cover verkleinern auf (px)"
 
 #: crates/tagjoe-gui/src/settings.rs:269
 msgid "Replace existing covers smaller than (px)"
-msgstr ""
+msgstr "Vorhandene Cover ersetzen, wenn kleiner als (px)"
 
 #: crates/tagjoe-gui/src/settings.rs:273
 msgid "CHAPTERS"
-msgstr ""
+msgstr "KAPITEL"
 
 #: crates/tagjoe-gui/src/settings.rs:274
 msgid "Title for unnamed chapters"
-msgstr ""
+msgstr "Titel für unbenannte Kapitel"
 
 #: crates/tagjoe-gui/src/settings.rs:275
 #, no-c-format
@@ -310,35 +310,35 @@ msgstr ""
 
 #: crates/tagjoe-gui/src/settings.rs:277
 msgid "SOURCES"
-msgstr ""
+msgstr "QUELLEN"
 
 #: crates/tagjoe-gui/src/settings.rs:278
 msgid "Audible regions (Audnexus), in order"
-msgstr ""
+msgstr "Audible-Regionen (Audnexus), in Reihenfolge"
 
 #: crates/tagjoe-gui/src/settings.rs:279
 msgid "Preferred release language (AudiobookDB)"
-msgstr ""
+msgstr "Bevorzugte Sprache des Releases (AudiobookDB)"
 
 #: crates/tagjoe-gui/src/settings.rs:283
 msgid "Base language is English; German is available."
-msgstr ""
+msgstr "Grundsprache ist Englisch; Deutsch ist verfügbar."
 
 #: crates/tagjoe-gui/src/settings.rs:283
 msgid "LANGUAGE"
-msgstr ""
+msgstr "SPRACHE"
 
 #: crates/tagjoe-gui/src/settings.rs:283
 msgid "UI language (empty = system)"
-msgstr ""
+msgstr "Sprache der Oberfläche (leer = System)"
 
 #: crates/tagjoe-gui/src/settings.rs:284
 msgid "CONFIGURATION FILE"
-msgstr ""
+msgstr "KONFIGURATIONSDATEI"
 
 #: crates/tagjoe-gui/src/settings.rs:285
 msgid "CREDITS"
-msgstr ""
+msgstr "DANKSAGUNG"
 
 #: crates/tagjoe-gui/src/settings.rs:285
 msgid ""
@@ -364,7 +364,7 @@ msgstr "tagjoe – Einstellungen"
 
 #: crates/tagjoe-gui/src/view.rs:106
 msgid "no cover"
-msgstr ""
+msgstr "kein Cover"
 
 #: crates/tagjoe-gui/src/view.rs:112
 msgid "tracks"
@@ -429,7 +429,7 @@ msgstr "Aus Ordner"
 
 #: crates/tagjoe-gui/src/view.rs:159
 msgid "no plan"
-msgstr ""
+msgstr "kein Plan"
 
 #: crates/tagjoe-gui/src/view.rs:174
 msgid "to add"
@@ -473,7 +473,7 @@ msgstr "Datei (vorhanden → Vorschlag)"
 
 #: crates/tagjoe-gui/src/view.rs:208
 msgid "(name unchanged)"
-msgstr ""
+msgstr "(Name unverändert)"
 
 #: crates/tagjoe-gui/src/view.rs:230
 msgid "FILES"
@@ -481,7 +481,7 @@ msgstr "DATEIEN"
 
 #: crates/tagjoe-gui/src/view.rs:236
 msgid "no files"
-msgstr ""
+msgstr "keine Dateien"
 
 #: crates/tagjoe-gui/src/view.rs:242
 msgid "Field"
