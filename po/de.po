@@ -820,3 +820,9 @@ msgstr "Buch"
 
 #~ msgid "Open"
 #~ msgstr "Öffnen"
+
+msgid "read by"
+msgstr "gelesen von"
+
+msgid "chapters"
+msgstr "Kapitel"

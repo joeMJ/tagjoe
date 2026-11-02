@@ -2,6 +2,9 @@
 
 use super::audiobookdb::AudiobookDb;
 use super::audnexus::{find_asin, looks_like_asin, Audnexus};
+use super::dnb::Dnb;
+use super::identify::match_tracks;
+use super::musicbrainz::MusicBrainz;
 use super::http::Http;
 use super::identify::{similarity, Identified};
 use super::{Progress, Result};
@@ -104,6 +107,51 @@ pub fn hints(unit: &Unit) -> BookHints {
     h
 }
 
+/// A MusicBrainz release (artist credit "Author gelesen von Narrator") as audiobook reference.
+pub fn mb_to_book(mut r: ReleaseInfo) -> ReleaseInfo {
+    let credit = r.album.get(&Field::AlbumArtist).cloned().unwrap_or_default();
+    let lower = credit.to_lowercase();
+    let (author, narrator) = if let Some(i) = lower.find(" gelesen von ") {
+        (credit[..i].trim().to_string(), credit[i + " gelesen von ".len()..].trim().to_string())
+    } else if let Some(i) = lower.find(" read by ") {
+        (credit[..i].trim().to_string(), credit[i + " read by ".len()..].trim().to_string())
+    } else if let Some((a, n)) = credit.split_once(", ") {
+        (a.trim().to_string(), n.trim().to_string())
+    } else {
+        (credit.clone(), String::new())
+    };
+    if !author.is_empty() {
+        r.album.insert(Field::AlbumArtist, author.clone());
+        r.album.insert(Field::Artist, author);
+    }
+    if !narrator.is_empty() {
+        r.album.insert(Field::Narrator, narrator);
+    }
+    if let Some(label) = r.album.remove(&Field::Label) {
+        r.album.insert(Field::Publisher, label);
+    }
+    if let Some(cat) = r.album.get(&Field::CatalogNumber).cloned() {
+        let d: String = cat.chars().filter(|c| c.is_ascii_digit()).collect();
+        if cat.to_uppercase().contains("ISBN") && (d.len() == 13 || d.len() == 10) {
+            r.album.entry(Field::Barcode).or_insert(d);
+            r.album.remove(&Field::CatalogNumber);
+        }
+    }
+    let g = r.album.get(&Field::Genre).cloned().unwrap_or_default();
+    r.album.insert(Field::Genre, if g.is_empty() || g == "Audiobook" { "Audiobook".into() } else { format!("Audiobook, {g}") });
+    r.album.remove(&Field::Compilation);
+    // track artists are the credit again – drop them, chapters keep their titles
+    for t in &mut r.tracks {
+        t.fields.remove(&Field::Artist);
+        t.fields.remove(&Field::MbArtistId);
+    }
+    let title = r.album.get(&Field::Album).cloned().unwrap_or_default();
+    let year = r.album.get(&Field::Date).map(|d| d.chars().take(4).collect::<String>()).unwrap_or_default();
+    let narrator = r.album.get(&Field::Narrator).cloned().map(|n| format!("{} {n}", crate::i18n::tr("read by"))).unwrap_or_default();
+    r.summary = [title, r.album.get(&Field::AlbumArtist).cloned().unwrap_or_default(), narrator, year, r.album.get(&Field::Publisher).cloned().unwrap_or_default(), format!("{} {}", r.tracks.len(), crate::i18n::tr("chapters")), "MusicBrainz".into()].into_iter().filter(|x| !x.is_empty()).collect::<Vec<_>>().join(" · ");
+    r
+}
+
 fn score_book(unit: &Unit, hints: &BookHints, release: &ReleaseInfo) -> u8 {
     let title = release.album.get(&Field::Album).map(String::as_str).unwrap_or("");
     let author = release.album.get(&Field::AlbumArtist).map(String::as_str).unwrap_or("");
@@ -116,6 +164,9 @@ fn score_book(unit: &Unit, hints: &BookHints, release: &ReleaseInfo) -> u8 {
         s += if diff < 0.03 { 15.0 } else if diff < 0.10 { 8.0 } else if diff > 0.5 { -20.0 } else { 0.0 };
     } else {
         s += 5.0;
+    }
+    if !release.tracks.is_empty() && release.tracks.len() == unit.files.len() {
+        s += 10.0;
     }
     // a different author is a different book, whatever the title says
     if !hints.author.is_empty() && !author.is_empty() && similarity(&hints.author, author) < 0.4 {
@@ -211,7 +262,44 @@ impl BookIdentifier<'_> {
             }
             Err(e) => notes.push(format!("AudiobookDB search: {}", e.short())),
         }
-        // 3. follow an ASIN found via AudiobookDB to Audnexus (richer, regional data)
+        // 3. MusicBrainz: audiobooks are releases with chapters as tracks (German ones are common)
+        let mb = MusicBrainz { http: self.http, base: &self.cfg.sources.musicbrainz_url };
+        let mut mb_ids = Vec::new();
+        for q in [(h.title.as_str(), h.author.as_str(), Some(unit.files.len())), (h.title.as_str(), h.author.as_str(), None)] {
+            match mb.search(q.0, q.1, q.2, 5) {
+                Ok(c) => {
+                    for cand in c {
+                        if !mb_ids.contains(&cand.id) {
+                            mb_ids.push(cand.id);
+                        }
+                    }
+                }
+                Err(e) => notes.push(format!("MusicBrainz search: {}", e.short())),
+            }
+            if mb_ids.len() >= 3 {
+                break;
+            }
+        }
+        for (i, id) in mb_ids.iter().take(3).enumerate() {
+            progress("musicbrainz", i + 1, mb_ids.len().min(3));
+            match mb.release(id) {
+                Ok(r) => found.push(mb_to_book(r)),
+                Err(e) => notes.push(format!("MusicBrainz release: {}", e.short())),
+            }
+        }
+        // 4. DNB: the German national bibliography (complete for German audiobooks, no chapters)
+        let dnb = Dnb { http: self.http };
+        progress("dnb", 1, 1);
+        match dnb.search(&h.title, &h.author, 10) {
+            Ok(rs) => {
+                if rs.is_empty() {
+                    notes.push(format!("DNB: no audiobook for \"{}\"", h.title));
+                }
+                found.extend(rs.into_iter().take(4));
+            }
+            Err(e) => notes.push(format!("DNB: {}", e.short())),
+        }
+        // 5. follow an ASIN found via AudiobookDB to Audnexus (richer, regional data)
         if !looks_like_asin(&h.asin) {
             let asins: Vec<String> = found.iter().filter_map(|r| r.album.get(&Field::Asin).cloned()).filter(|a| looks_like_asin(a)).collect();
             let an = Audnexus { http: self.http, base: &self.cfg.sources.audnexus_url };
@@ -225,7 +313,13 @@ impl BookIdentifier<'_> {
             .into_iter()
             .map(|mut r| {
                 r.score = score_book(unit, &h, &r);
-                let matched = map_chapters(unit, &mut r, self.cfg);
+                let matched = if r.source == "MusicBrainz" && r.tracks.len() == unit.files.len() {
+                    // chapters in order; durations confirm the order
+                    let (m, _, _) = match_tracks(unit, &r, &vec![vec![]; unit.files.len()]);
+                    if m.iter().all(|x| x.is_some()) { m } else { map_chapters(unit, &mut r, self.cfg) }
+                } else {
+                    map_chapters(unit, &mut r, self.cfg)
+                };
                 Identified { release: r, matched, by_fingerprint: 0, by_heuristic: unit.files.len(), notes: vec![] }
             })
             .collect();

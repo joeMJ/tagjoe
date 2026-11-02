@@ -37,6 +37,8 @@ impl Http {
         intervals.insert("api.discogs.com".to_string(), Duration::from_millis(1100));
         intervals.insert("api.audnex.us".to_string(), Duration::from_millis(250));
         intervals.insert("audiobookdb.org".to_string(), Duration::from_millis(500));
+        intervals.insert("services.dnb.de".to_string(), Duration::from_millis(1000));
+        intervals.insert("covers.openlibrary.org".to_string(), Duration::from_millis(500));
         Self { client, intervals, last: Mutex::new(HashMap::new()), cache_dir, cache_ttl: Duration::from_secs(cache_days as u64 * 86400), offline: false }
     }
 

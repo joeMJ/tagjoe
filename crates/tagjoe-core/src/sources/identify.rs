@@ -283,10 +283,17 @@ impl Identifier<'_> {
     /// Attach cover bytes: resolve a `CoverSource::Url`, or fetch the Cover Art Archive front.
     pub fn fetch_cover(&self, release: &mut ReleaseInfo) -> Result<bool> {
         if let Some(CoverSource::Url { url }) = release.cover.clone() {
-            let bytes = self.http.get_bytes(&url, &[], "img")?;
-            let mime = if bytes.starts_with(&[0x89, b'P', b'N', b'G']) { "image/png" } else { "image/jpeg" };
-            release.cover = Some(CoverSource::Bytes { bytes, mime: mime.into() });
-            return Ok(true);
+            match self.http.get_bytes(&url, &[], "img") {
+                Ok(bytes) if bytes.len() > 1000 => {
+                    let mime = if bytes.starts_with(&[0x89, b'P', b'N', b'G']) { "image/png" } else { "image/jpeg" };
+                    release.cover = Some(CoverSource::Bytes { bytes, mime: mime.into() });
+                    return Ok(true);
+                }
+                Ok(_) | Err(super::SourceError::Status { status: 404, .. }) => {
+                    release.cover = None;
+                }
+                Err(e) => return Err(e),
+            }
         }
         let rid = release.album.get(&Field::MbReleaseId).cloned().unwrap_or_default();
         if rid.is_empty() {
