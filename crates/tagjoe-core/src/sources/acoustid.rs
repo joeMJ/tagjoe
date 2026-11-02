@@ -1,6 +1,6 @@
 //! AcoustID lookup: fingerprint → MusicBrainz recording and release ids.
 
-use super::http::{enc, Http};
+use super::http::Http;
 use super::{Result, SourceError};
 
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -22,8 +22,9 @@ impl AcoustId<'_> {
         if self.key.trim().is_empty() {
             return Err(SourceError::NotConfigured("AcoustID application key (acoustid_key)".into()));
         }
-        let url = format!("https://api.acoustid.org/v2/lookup?client={}&meta=recordings+releaseids&duration={}&fingerprint={}", enc(self.key), duration.round() as i64, enc(fingerprint));
-        let v = self.http.get_json(&url, &[])?;
+        // POST keeps the long fingerprint out of the URL (as the AcoustID docs recommend)
+        let duration = (duration.round() as i64).to_string();
+        let v = self.http.post_form_json("https://api.acoustid.org/v2/lookup", &[("client", self.key.trim()), ("meta", "recordings releaseids"), ("duration", &duration), ("fingerprint", fingerprint)])?;
         Ok(parse(&v))
     }
 }

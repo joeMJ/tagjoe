@@ -2,12 +2,14 @@
 #![forbid(unsafe_code)]
 
 mod i18n;
+mod picker;
 mod settings;
 mod theme;
 mod view;
 mod work;
 
-use iced::widget::image;
+use iced::widget::{image, pane_grid};
+use std::collections::BTreeSet;
 use iced::{event, window, Element, Subscription, Task, Theme};
 use std::collections::BTreeMap;
 use std::path::PathBuf;
@@ -44,6 +46,20 @@ pub struct Job {
     pub notes: Vec<String>,
     pub cover_input: String,
     pub result: Option<ApplyResult>,
+    /// Files whose rename is switched off.
+    pub rename_off: BTreeSet<usize>,
+    /// (file, field) changes the user unchecked.
+    pub skipped: BTreeSet<(usize, Field)>,
+    /// (file, removal index) the user unchecked.
+    pub skipped_removals: BTreeSet<(usize, usize)>,
+    /// Files whose cover embedding is switched off.
+    pub cover_off: BTreeSet<usize>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Pane {
+    Files,
+    Fields,
 }
 
 pub struct App {
@@ -56,6 +72,8 @@ pub struct App {
     pub settings: Option<settings::SettingsState>,
     pub offline: bool,
     pub last_journal: Option<String>,
+    pub panes: pane_grid::State<Pane>,
+    pub picker: Option<picker::Picker>,
 }
 
 #[derive(Debug, Clone)]
@@ -92,6 +110,12 @@ pub enum Message {
     Settings(settings::SettingsMessage),
     Status(String),
     ToggleOffline(bool),
+    ToggleRenameAll(usize, bool),
+    PaneResized(pane_grid::ResizeEvent),
+    OpenFolderPicker,
+    OpenCoverPicker(usize),
+    Picker(picker::PickerMessage),
+    OpenUrl(String),
 }
 
 /// Command line: `tagjoe-gui [--theme light|dark] [--offline] [FOLDER…]`
@@ -122,7 +146,8 @@ fn boot() -> (App, Task<Message>) {
     let a = args();
     let cfg = Config::load();
     tagjoe_core::i18n::init_from_env(&cfg.language);
-    let app = App { cfg: Arc::new(cfg), theme: if a.theme.as_deref() == Some("dark") { theme::dark() } else { theme::light() }, jobs: vec![], selected: None, path_input: String::new(), status: i18n::t("Drop a folder onto the window or enter a path."), settings: None, offline: a.offline, last_journal: work::last_journal() };
+    let panes = pane_grid::State::with_configuration(pane_grid::Configuration::Split { axis: pane_grid::Axis::Horizontal, ratio: 0.5, a: Box::new(pane_grid::Configuration::Pane(Pane::Files)), b: Box::new(pane_grid::Configuration::Pane(Pane::Fields)) });
+    let app = App { cfg: Arc::new(cfg), theme: if a.theme.as_deref() == Some("dark") { theme::dark() } else { theme::light() }, jobs: vec![], selected: None, path_input: String::new(), status: i18n::t("Drop a folder onto the window or enter a path."), settings: None, offline: a.offline, last_journal: work::last_journal(), panes, picker: None };
     let mut tasks = Vec::new();
     if a.theme.is_none() {
         tasks.push(iced::system::theme().map(Message::SystemTheme));
@@ -153,7 +178,7 @@ fn cover_handle(src: &CoverSource) -> Option<image::Handle> {
 
 impl Job {
     fn new(unit: Arc<Unit>) -> Self {
-        Job { unit, state: JobState::Scanning, candidates: vec![], chosen: None, plan: None, selected_file: 0, album_overrides: BTreeMap::new(), file_overrides: BTreeMap::new(), cover_override: None, cover_handle: None, notes: vec![], cover_input: String::new(), result: None }
+        Job { unit, state: JobState::Scanning, candidates: vec![], chosen: None, plan: None, selected_file: 0, album_overrides: BTreeMap::new(), file_overrides: BTreeMap::new(), cover_override: None, cover_handle: None, notes: vec![], cover_input: String::new(), result: None, rename_off: BTreeSet::new(), skipped: BTreeSet::new(), skipped_removals: BTreeSet::new(), cover_off: BTreeSet::new() }
     }
 
     /// Reference data + matching for the current choice (candidate or tags/offline).
@@ -195,12 +220,28 @@ impl Job {
         }
         self.cover_handle = rel.cover.as_ref().and_then(cover_handle);
         let mut plan = propose::build_plan(&self.unit, &rel, &matched, cfg);
-        // manual values always apply, even when they equal nothing or differ from the source
-        for fp in plan.files.iter_mut() {
+        // manual values always apply; the user's unchecked boxes survive a rebuild
+        for (i, fp) in plan.files.iter_mut().enumerate() {
             for ch in fp.changes.iter_mut() {
-                let manual = self.album_overrides.contains_key(&ch.field) || self.file_overrides.contains_key(&(0, ch.field));
+                let manual = self.album_overrides.contains_key(&ch.field) || self.file_overrides.contains_key(&(i, ch.field));
                 if manual && ch.status != Status::Ok {
                     ch.apply = true;
+                }
+                if self.skipped.contains(&(i, ch.field)) {
+                    ch.apply = false;
+                }
+            }
+            for (ri, r) in fp.removals.iter_mut().enumerate() {
+                if self.skipped_removals.contains(&(i, ri)) {
+                    r.apply = false;
+                }
+            }
+            if self.rename_off.contains(&i) {
+                fp.new_name = None;
+            }
+            if let Some(c) = fp.cover.as_mut() {
+                if self.cover_off.contains(&i) {
+                    c.apply = false;
                 }
             }
         }
@@ -323,40 +364,96 @@ fn update(app: &mut App, msg: Message) -> Task<Message> {
             }
         }
         Message::ToggleChange(file, field, on) => {
-            if let Some(p) = app.selected.and_then(|s| app.jobs.get_mut(s)).and_then(|j| j.plan.as_mut()) {
-                if let Some(c) = p.files.get_mut(file).and_then(|f| f.changes.iter_mut().find(|c| c.field == field)) {
+            if let Some(j) = app.selected.and_then(|s| app.jobs.get_mut(s)) {
+                if on {
+                    j.skipped.remove(&(file, field));
+                } else {
+                    j.skipped.insert((file, field));
+                }
+                if let Some(c) = j.plan.as_mut().and_then(|p| p.files.get_mut(file)).and_then(|f| f.changes.iter_mut().find(|c| c.field == field)) {
                     c.apply = on;
                 }
             }
         }
         Message::ToggleRemoval(file, idx, on) => {
-            if let Some(p) = app.selected.and_then(|s| app.jobs.get_mut(s)).and_then(|j| j.plan.as_mut()) {
-                if let Some(r) = p.files.get_mut(file).and_then(|f| f.removals.get_mut(idx)) {
+            if let Some(j) = app.selected.and_then(|s| app.jobs.get_mut(s)) {
+                if on {
+                    j.skipped_removals.remove(&(file, idx));
+                } else {
+                    j.skipped_removals.insert((file, idx));
+                }
+                if let Some(r) = j.plan.as_mut().and_then(|p| p.files.get_mut(file)).and_then(|f| f.removals.get_mut(idx)) {
                     r.apply = on;
                 }
             }
         }
         Message::ToggleCover(file, on) => {
-            if let Some(p) = app.selected.and_then(|s| app.jobs.get_mut(s)).and_then(|j| j.plan.as_mut()) {
-                if let Some(c) = p.files.get_mut(file).and_then(|f| f.cover.as_mut()) {
+            if let Some(j) = app.selected.and_then(|s| app.jobs.get_mut(s)) {
+                if on {
+                    j.cover_off.remove(&file);
+                } else {
+                    j.cover_off.insert(file);
+                }
+                if let Some(c) = j.plan.as_mut().and_then(|p| p.files.get_mut(file)).and_then(|f| f.cover.as_mut()) {
                     c.apply = on;
                 }
             }
         }
         Message::ToggleRename(file, on) => {
             if let Some(j) = app.selected.and_then(|s| app.jobs.get_mut(s)) {
-                if let Some(p) = j.plan.as_mut() {
-                    if let Some(f) = p.files.get_mut(file) {
-                        if !on {
-                            f.new_name = None;
-                        } else if f.new_name.is_none() {
-                            // recompute by rebuilding the whole plan
+                if on {
+                    j.rename_off.remove(&file);
+                } else {
+                    j.rename_off.insert(file);
+                }
+                j.rebuild(&app.cfg);
+            }
+        }
+        Message::ToggleRenameAll(job, on) => {
+            if let Some(j) = app.jobs.get_mut(job) {
+                if on {
+                    j.rename_off.clear();
+                } else {
+                    j.rename_off = (0..j.unit.files.len()).collect();
+                }
+                j.rebuild(&app.cfg);
+            }
+        }
+        Message::PaneResized(e) => app.panes.resize(e.split, e.ratio.clamp(0.15, 0.85)),
+        Message::OpenFolderPicker => {
+            let start = app.selected.and_then(|i| app.jobs.get(i)).and_then(|j| j.unit.path.parent().map(|p| p.to_path_buf()));
+            app.picker = Some(picker::Picker::new(picker::PickMode::Folder, None, start.as_deref()));
+        }
+        Message::OpenCoverPicker(job) => {
+            let start = app.jobs.get(job).map(|j| j.unit.path.clone());
+            app.picker = Some(picker::Picker::new(picker::PickMode::Image, Some(job), start.as_deref()));
+        }
+        Message::Picker(m) => {
+            let mut result: Option<(picker::PickMode, Option<usize>, Option<PathBuf>)> = None;
+            if let Some(p) = app.picker.as_mut() {
+                if let Some(done) = p.update(m) {
+                    result = Some((p.mode, p.job, done));
+                }
+            }
+            if let Some((mode, job, chosen)) = result {
+                app.picker = None;
+                match (mode, chosen) {
+                    (picker::PickMode::Folder, Some(dir)) => {
+                        app.status = format!("{} {}", i18n::t("Scanning"), dir.display());
+                        return work::scan_task(dir);
+                    }
+                    (picker::PickMode::Image, Some(file)) => {
+                        if let Some(j) = job.and_then(|i| app.jobs.get_mut(i)) {
+                            j.cover_override = Some(CoverSource::File { path: file });
+                            j.cover_off.clear();
                             j.rebuild(&app.cfg);
                         }
                     }
+                    _ => {}
                 }
             }
         }
+        Message::OpenUrl(url) => open_url(&url),
         Message::EditNew(file, field, value) => {
             if let Some(j) = app.selected.and_then(|s| app.jobs.get_mut(s)) {
                 if field.is_album_level() {
@@ -491,11 +588,26 @@ fn update(app: &mut App, msg: Message) -> Task<Message> {
     Task::none()
 }
 
-fn view(app: &App) -> Element<'_, Message> {
-    if let Some(s) = &app.settings {
-        return settings::view(s, app).map(Message::Settings);
+/// Open a web address in the system browser (no extra dependency).
+pub fn open_url(url: &str) {
+    if !(url.starts_with("http://") || url.starts_with("https://")) {
+        return;
     }
-    view::main(app)
+    #[cfg(target_os = "linux")]
+    let r = std::process::Command::new("xdg-open").arg(url).spawn();
+    #[cfg(target_os = "windows")]
+    let r = std::process::Command::new("cmd").args(["/C", "start", "", url]).spawn();
+    #[cfg(target_os = "macos")]
+    let r = std::process::Command::new("open").arg(url).spawn();
+    let _ = r;
+}
+
+fn view(app: &App) -> Element<'_, Message> {
+    let base: Element<'_, Message> = if let Some(s) = &app.settings { settings::view(s, app).map(Message::Settings) } else { view::main(app) };
+    match &app.picker {
+        Some(p) => picker::overlay(base, p.view().map(Message::Picker), Message::Picker(picker::PickerMessage::Cancel)),
+        None => base,
+    }
 }
 
 fn main() -> iced::Result {

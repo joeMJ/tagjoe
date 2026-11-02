@@ -36,6 +36,21 @@ impl fmt::Display for SourceError {
 }
 impl std::error::Error for SourceError {}
 
+impl SourceError {
+    /// One-line description without the URL (for notes shown to the user).
+    pub fn short(&self) -> String {
+        match self {
+            SourceError::Http { msg, .. } => format!("request failed: {msg}"),
+            SourceError::Status { status: 429, .. } => "HTTP 429 (rate limit exceeded)".into(),
+            SourceError::Status { status: 503, .. } => "HTTP 503 (service busy)".into(),
+            SourceError::Status { status, .. } => format!("HTTP {status}"),
+            SourceError::Parse { msg, .. } => format!("unreadable response: {msg}"),
+            SourceError::NotConfigured(w) => format!("not configured: {w}"),
+            SourceError::Tool(m) => m.clone(),
+        }
+    }
+}
+
 pub type Result<T> = std::result::Result<T, SourceError>;
 
 /// Progress callback: (step, done, total).

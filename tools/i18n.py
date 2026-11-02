@@ -76,6 +76,13 @@ def collect():
                 if plural is not None:
                     e[0] = plural
                 e[1].append(f"{rel}:{line}")
+    # Texte, die nicht als Literal im Aufruf stehen (z. B. Feldnamen aus model.rs): po/EXTRA_KEYS.txt
+    extra = PO / "EXTRA_KEYS.txt"
+    if extra.is_file():
+        for n, line in enumerate(extra.read_text(encoding="utf-8").splitlines(), 1):
+            line = line.strip()
+            if line and not line.startswith("#"):
+                entries.setdefault(line, [None, []])[1].append(f"po/EXTRA_KEYS.txt:{n}")
     return entries
 
 

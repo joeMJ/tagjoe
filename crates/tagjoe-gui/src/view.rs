@@ -2,8 +2,8 @@
 
 use crate::i18n::t;
 use crate::theme as th;
-use crate::{App, Job, JobState, Message};
-use iced::widget::{button, checkbox, column, container, image, row, rule, scrollable, space, text, text_input};
+use crate::{App, Job, JobState, Message, Pane};
+use iced::widget::{button, checkbox, column, container, image, pane_grid, row, rule, scrollable, space, text, text_input};
 use iced::{Element, Fill, FillPortion, Length, Theme};
 use tagjoe_core::model::{Field, Kind};
 use tagjoe_core::schema::Status;
@@ -60,9 +60,10 @@ fn sidebar(app: &App) -> Element<'_, Message> {
     for (i, j) in app.jobs.iter().enumerate() {
         list = list.push(queue_entry(i, j, app.selected == Some(i)));
     }
-    let drop = container(column![text(t("Drop a folder here")).size(14), text(t("or enter a path above")).size(12)].spacing(2).align_x(iced::Center)).padding(16).width(Fill).style(th::drop_zone);
+    let drop = container(column![text(t("Drop a folder here (Wayland: use “Open folder…”)")).size(13).center(), text(t("or enter a path above")).size(12)].spacing(2).align_x(iced::Center)).padding(14).width(Fill).style(th::drop_zone);
     let input = row![text_input(&t("Folder path…"), &app.path_input).on_input(Message::PathInput).on_submit(Message::AddPath).size(13).padding(6), button(text(t("Add")).size(13)).on_press(Message::AddPath).padding([6, 10]).style(button::secondary)].spacing(6);
-    container(column![text(t("QUEUE")).size(12).style(th::dim), input, scrollable(list).height(Fill), drop].spacing(10).padding(10)).width(300).height(Fill).style(th::sidebar).into()
+    let open = button(text(t("Open folder…")).size(13)).on_press(Message::OpenFolderPicker).padding([6, 10]).style(button::primary).width(Fill);
+    container(column![text(t("QUEUE")).size(12).style(th::dim), open, input, scrollable(list).height(Fill), drop].spacing(10).padding(10)).width(300).height(Fill).style(th::sidebar).into()
 }
 
 fn header(app: &App) -> Element<'_, Message> {
@@ -126,25 +127,33 @@ fn release_card<'a>(job_idx: usize, job: &'a Job) -> Element<'a, Message> {
     cands = cands.push(button(text(t("tags only")).size(12)).on_press(Message::ChooseCandidate(job_idx, usize::MAX)).style(th::list_button(job.chosen.is_none())).padding([4, 8]));
     let cands = cands.wrap();
     let (complete, incomplete, foreign, no_cover, renames) = job.summary();
+    let all_renames_on = job.rename_off.is_empty();
+    let rename_all = checkbox(all_renames_on).label(t("Rename files")).on_toggle(move |b| Message::ToggleRenameAll(job_idx, b)).size(16).text_size(12);
     let chips = row![
         chip(format!("{complete} {}", t("complete")), th::ok),
         chip(format!("{incomplete} {}", t("incomplete")), th::warn),
         chip(format!("{foreign} {}", t("foreign fields")), th::err),
         chip(format!("{} {no_cover}", t("cover missing:")), th::err),
         chip(format!("{renames} {}", t("renames")), th::dim),
+        rename_all,
     ]
-    .spacing(6);
+    .spacing(6)
+    .align_y(iced::Center);
     let cover_tools = row![
         text_input(&t("Cover: image file path or URL"), &job.cover_input).on_input(move |s| Message::CoverInput(job_idx, s)).on_submit(Message::CoverUse(job_idx)).size(12).padding(5).width(Length::Fixed(320.0)),
         button(text(t("Use")).size(12)).on_press(Message::CoverUse(job_idx)).padding([5, 8]).style(button::secondary),
         button(text(t("From folder")).size(12)).on_press_maybe(job.unit.cover_files.first().map(|_| Message::CoverFromFolder(job_idx))).padding([5, 8]).style(button::secondary),
+        button(text(t("Cover from file…")).size(12)).on_press(Message::OpenCoverPicker(job_idx)).padding([5, 8]).style(button::secondary),
     ]
     .spacing(6);
+
     let info = column![text(title).size(16), text(line1).size(13).style(th::dim), text(line2).size(12).style(th::dim), cands, cover_tools].spacing(4);
     let mut notes = column![].spacing(2);
     for n in &job.notes {
         notes = notes.push(text(n.clone()).size(11).style(th::dim));
     }
+    let notes = scrollable(notes).height(Length::Shrink).width(Fill);
+    let notes = container(notes).max_height(60.0);
     container(column![row![cover, info.width(Fill)].spacing(12).align_y(iced::Top), chips, notes].spacing(8)).padding(10).width(Fill).style(th::card).into()
 }
 
@@ -195,6 +204,7 @@ fn files_table<'a>(job: &'a Job) -> Element<'a, Message> {
         .collect();
     let head = row![
         text(t("No")).size(12).style(th::dim).width(Length::Fixed(36.0)),
+        text(t("Rename")).size(12).style(th::dim).width(Length::Fixed(60.0)),
         text(t("File (current → proposed)")).size(12).style(th::dim).width(Fill),
         text(t("Tags")).size(12).style(th::dim).width(Length::Fixed(230.0)),
         text(t("Cover")).size(12).style(th::dim).width(Length::Fixed(150.0)),
@@ -215,8 +225,10 @@ fn files_table<'a>(job: &'a Job) -> Element<'a, Message> {
             Some((false, s)) => status_text(Status::Missing, s),
             None => text("").into(),
         };
+        let rename_on = !job.rename_off.contains(&idx);
         let line = row![
             text(format!("{:02}", idx + 1)).size(12).width(Length::Fixed(36.0)),
+            container(checkbox(rename_on).on_toggle(move |b| Message::ToggleRename(idx, b)).size(16)).width(Length::Fixed(60.0)),
             name_col,
             container(status_text(r.tags.0, r.tags.1)).width(Length::Fixed(230.0)),
             container(cover_cell).width(Length::Fixed(150.0)),
@@ -259,7 +271,7 @@ fn fields_table<'a>(job: &'a Job) -> Element<'a, Message> {
         let cb = checkbox(r.apply).on_toggle_maybe(if r.status == Status::Ok { None } else { Some(move |b| Message::ToggleChange(file, field, b)) }).size(16);
         let line = row![
             container(cb).width(Length::Fixed(28.0)),
-            text(r.label).size(12).width(Length::Fixed(170.0)),
+            text(t(&r.label)).size(12).width(Length::Fixed(170.0)),
             text(if r.old.is_empty() { "—".to_string() } else { r.old }).size(12).style(th::dim).width(FillPortion(2)),
             text_input("", &r.new).on_input(move |s| Message::EditNew(file, field, s)).size(12).padding(4).width(FillPortion(2)),
             container(status_text(r.status, label)).width(Length::Fixed(120.0)),
@@ -293,10 +305,6 @@ fn fields_table<'a>(job: &'a Job) -> Element<'a, Message> {
     if let Some(c) = &fp.cover {
         let (file, apply) = (fi, c.apply);
         extra = extra.push(checkbox(apply).label(format!("{} {}×{} ({} KB){}", t("Embed cover"), c.width, c.height, c.bytes / 1024, if c.replaces_existing { t(", replaces the existing one") } else { String::new() })).on_toggle(move |b| Message::ToggleCover(file, b)).size(16).text_size(12));
-    }
-    if fp.new_name.is_some() || job.plan.as_ref().map(|p| p.files[fi].new_name.is_some()).unwrap_or(false) {
-        let file = fi;
-        extra = extra.push(checkbox(true).label(format!("{} {}", t("Rename to"), fp.new_name.clone().unwrap_or_default())).on_toggle(move |b| Message::ToggleRename(file, b)).size(16).text_size(12));
     }
     let hint = text(t("Edits in “New” apply to this file; album-level fields apply to all files of the folder.")).size(11).style(th::dim);
     container(column![text(format!("{} · {} {}", t("FIELDS"), t("file"), fi + 1)).size(12).style(th::dim), hint, scrollable(column![tbl, rem_tbl, extra].spacing(8)).height(Fill)].spacing(6)).padding(10).width(Fill).height(Fill).style(th::card).into()
@@ -341,7 +349,13 @@ pub fn main(app: &App) -> Element<'_, Message> {
     let main: Element<'_, Message> = match job {
         Some((i, j)) => {
             let bar = row![text(j.unit.path.display().to_string()).size(14).width(Fill), kind_picker(i, j)].spacing(8).align_y(iced::Center);
-            let split = column![container(files_table(j)).height(FillPortion(1)), container(fields_table(j)).height(FillPortion(1))].spacing(10).height(Fill);
+            let split = pane_grid(&app.panes, |_pane, which, _focused| match which {
+                Pane::Files => pane_grid::Content::new(files_table(j)),
+                Pane::Fields => pane_grid::Content::new(fields_table(j)),
+            })
+            .spacing(10)
+            .on_resize(8, Message::PaneResized)
+            .height(Fill);
             column![bar, release_card(i, j), split].spacing(10).padding(10).into()
         }
         None => container(column![text(t("Drop a folder (album, compilation or audiobook) onto the window.")).size(16), text(t("tagjoe reads every file, checks each tag field, proposes tags, cover and file names – nothing is written until you click Apply.")).size(13).style(th::dim)].spacing(8).align_x(iced::Center)).center(Fill).into(),

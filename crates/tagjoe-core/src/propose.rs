@@ -227,7 +227,7 @@ pub fn release_from_unit(unit: &Unit) -> ReleaseInfo {
     let date = album.get(&Field::Date).cloned().unwrap_or_default();
     ReleaseInfo {
         source: "tags".into(),
-        summary: format!("{title} · {artist} · {date} · {} files", unit.files.len()).replace(" ·  ·", " ·"),
+        summary: format!("{title} · {artist} · {date} · {} {}", unit.files.len(), crate::i18n::tr("files")).replace(" ·  ·", " ·"),
         album,
         tracks,
         cover: unit.cover_files.first().map(|p| CoverSource::File { path: p.clone() }),

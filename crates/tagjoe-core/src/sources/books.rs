@@ -179,7 +179,7 @@ impl BookIdentifier<'_> {
             match an.release_info(&h.asin, &self.cfg.audiobook.audnexus_regions) {
                 Ok(Some(r)) => found.push(r),
                 Ok(None) => notes.push(format!("Audnexus: ASIN {} not found in regions {:?}", h.asin, self.cfg.audiobook.audnexus_regions)),
-                Err(e) => notes.push(format!("Audnexus: {e}")),
+                Err(e) => notes.push(format!("Audnexus: {}", e.short())),
             }
         }
         // 2. AudiobookDB title search
@@ -202,14 +202,14 @@ impl BookIdentifier<'_> {
                     match db.release_info(&hit.id, &self.cfg.audiobook.language) {
                         Ok(Some(r)) => found.push(r),
                         Ok(None) => {}
-                        Err(e) => notes.push(format!("AudiobookDB {}: {e}", hit.id)),
+                        Err(e) => notes.push(format!("AudiobookDB {}: {}", hit.id, e.short())),
                     }
                 }
                 if total == 0 {
                     notes.push(format!("AudiobookDB: no match for \"{}\"", h.title));
                 }
             }
-            Err(e) => notes.push(format!("AudiobookDB search: {e}")),
+            Err(e) => notes.push(format!("AudiobookDB search: {}", e.short())),
         }
         // 3. follow an ASIN found via AudiobookDB to Audnexus (richer, regional data)
         if !looks_like_asin(&h.asin) {

@@ -1,0 +1,33 @@
+# Field labels from crates/tagjoe-core/src/model.rs (Field::label), translated via tr() in the GUI
+Title
+Chapter title
+Artist
+Author
+Album artist
+Author (album)
+Album
+Book
+Date
+Track
+Chapter
+Tracks
+Chapters
+Disc
+Discs
+Genre
+Label
+Catalog number
+Barcode
+Compilation
+MusicBrainz release
+MusicBrainz release group
+MusicBrainz recording
+MusicBrainz artist
+MusicBrainz album artist
+Narrator
+Series
+Series part
+Publisher
+ASIN
+Description
+ISRC

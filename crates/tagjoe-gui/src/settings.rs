@@ -58,6 +58,7 @@ pub enum SettingsMessage {
     Reset,
     Save,
     Close,
+    OpenUrl(String),
 }
 
 pub enum Outcome {
@@ -135,6 +136,7 @@ impl SettingsState {
                 *self = SettingsState::new(Config::default());
             }
             M::Save => return Outcome::Save(Box::new(self.cfg.clone())),
+            M::OpenUrl(u) => crate::open_url(&u),
             M::Close => return Outcome::Close,
         }
         Outcome::Keep
@@ -201,6 +203,11 @@ fn card<'a>(title: String, body: Element<'a, SettingsMessage>) -> Element<'a, Se
     container(column![text(title).size(12).style(th::dim), body].spacing(6)).padding(10).width(Fill).style(th::card).into()
 }
 
+/// Clickable web address.
+fn link<'a>(url: &'static str) -> Element<'a, SettingsMessage> {
+    button(text(url).size(12).style(th::info)).on_press(SettingsMessage::OpenUrl(url.to_string())).style(button::text).padding(0).into()
+}
+
 fn field<'a>(label: &str, value: &str, on: impl Fn(String) -> SettingsMessage + 'a) -> Element<'a, SettingsMessage> {
     row![text(label.to_string()).size(13).width(Length::Fixed(200.0)), text_input("", value).on_input(on).size(13).padding(5).width(Fill)].spacing(8).align_y(iced::Center).into()
 }
@@ -239,15 +246,18 @@ pub fn view<'a>(s: &'a SettingsState, app: &'a App) -> Element<'a, SettingsMessa
         ].spacing(10).into(),
         Page::Sources => column![
             card(t("MUSICBRAINZ AND ACOUSTID"), column![
-                text(t("MusicBrainz and the Cover Art Archive need no key. AcoustID fingerprint lookups need an application key: register tagjoe at https://acoustid.org/new-application and paste the key here. fpcalc (libchromaprint-tools) must be installed.")).size(12).style(th::dim),
+                text(t("MusicBrainz and the Cover Art Archive need no key. AcoustID fingerprint lookups need an application key: register tagjoe here and paste the key below. fpcalc (libchromaprint-tools) must be installed.")).size(12).style(th::dim),
+                link("https://acoustid.org/new-application"),
                 field(&t("AcoustID application key"), &cfg.sources.acoustid_key, SettingsMessage::AcoustIdKey),
             ].spacing(6).into()),
             card(t("DISCOGS"), column![
-                toggler(cfg.sources.discogs_enabled).label(t("Use Discogs as a second music source (personal access token from discogs.com/settings/developers)")).on_toggle(SettingsMessage::DiscogsEnabled).text_size(13),
+                toggler(cfg.sources.discogs_enabled).label(t("Use Discogs as a second music source (personal access token)")).on_toggle(SettingsMessage::DiscogsEnabled).text_size(13),
+                link("https://www.discogs.com/settings/developers"),
                 field(&t("Discogs token"), &cfg.sources.discogs_token, SettingsMessage::DiscogsToken),
             ].spacing(6).into()),
             card(t("AUDIOBOOKS"), column![
-                text(t("Audiobook data from AudiobookDB (https://audiobookdb.org) and Audnexus. Anonymous access works; an AudiobookDB API key (free account) raises the limits.")).size(12).style(th::dim),
+                text(t("Audiobook data from AudiobookDB and Audnexus. Anonymous access works; an AudiobookDB API key (free account) raises the limits.")).size(12).style(th::dim),
+                row![link("https://audiobookdb.org"), link("https://audiobookdb.org/settings/api-key")].spacing(12),
                 field(&t("AudiobookDB API key"), &cfg.sources.audiobookdb_key, SettingsMessage::AudiobookDbKey),
             ].spacing(6).into()),
             card(t("CACHE"), field(&t("Keep responses for (days)"), &cfg.sources.cache_days.to_string(), SettingsMessage::CacheDays)),
@@ -282,7 +292,7 @@ pub fn view<'a>(s: &'a SettingsState, app: &'a App) -> Element<'a, SettingsMessa
         Page::General => column![
             card(t("LANGUAGE"), column![field(&t("UI language (empty = system)"), &cfg.language, SettingsMessage::Language), text(t("Base language is English; German is available.")).size(12).style(th::dim)].spacing(6).into()),
             card(t("CONFIGURATION FILE"), text(tagjoe_core::config::config_path().display().to_string()).size(12).font(iced::Font::MONOSPACE).into()),
-            card(t("CREDITS"), text(t("Music data: MusicBrainz, AcoustID, Cover Art Archive, Discogs. Audiobook data: AudiobookDB (https://audiobookdb.org) and Audnexus.")).size(12).style(th::dim).into()),
+            card(t("CREDITS"), column![text(t("Music data: MusicBrainz, AcoustID, Cover Art Archive, Discogs. Audiobook data: AudiobookDB and Audnexus.")).size(12).style(th::dim), row![link("https://musicbrainz.org"), link("https://acoustid.org"), link("https://coverartarchive.org"), link("https://www.discogs.com"), link("https://audiobookdb.org"), link("https://github.com/laxamentumtech/audnexus")].spacing(12).wrap()].spacing(4).into()),
         ].spacing(10).into(),
     };
     let header = container(row![text(t("tagjoe – Settings")).size(16), space().width(Fill), button(text(t("Reset to defaults")).size(13)).on_press(SettingsMessage::Reset).style(button::secondary).padding([6, 10]), button(text(t("Cancel")).size(13)).on_press(SettingsMessage::Close).style(button::secondary).padding([6, 10]), button(text(t("Save")).size(13)).on_press(SettingsMessage::Save).style(button::primary).padding([6, 12])].spacing(8).align_y(iced::Center).padding([6, 12])).width(Fill).style(th::header_bar);

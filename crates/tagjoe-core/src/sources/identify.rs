@@ -174,6 +174,8 @@ impl Identifier<'_> {
             let fps = fingerprint::compute_all(&paths, 120, progress);
             let acoust = AcoustId { http: self.http, key };
             let mut ok = 0;
+            let mut errors: BTreeMap<String, usize> = BTreeMap::new();
+            let no_fp = fps.iter().filter(|f| f.is_none()).count();
             for (i, fp) in fps.iter().enumerate() {
                 progress("acoustid", i + 1, n);
                 let Some(fp) = fp else { continue };
@@ -189,10 +191,17 @@ impl Identifier<'_> {
                             ok += 1;
                         }
                     }
-                    Err(e) => notes.push(format!("AcoustID: {e}")),
+                    Err(e) => *errors.entry(e.short()).or_default() += 1,
                 }
             }
-            notes.push(format!("AcoustID: {ok} of {n} files recognized"));
+            let mut line = format!("AcoustID: {ok} of {n} files recognized");
+            if no_fp > 0 {
+                line.push_str(&format!(", {no_fp} without fingerprint"));
+            }
+            for (e, c) in errors {
+                line.push_str(&format!(", {c}× {e}"));
+            }
+            notes.push(line);
         } else if key.is_empty() {
             notes.push("AcoustID key not configured; using tag search only".into());
         } else if !fingerprint::available() {
@@ -214,7 +223,7 @@ impl Identifier<'_> {
                 }
                 match mb.search(q.0, q.1, q.2, 8) {
                     Ok(c) => found.extend(c),
-                    Err(e) => notes.push(format!("MusicBrainz search: {e}")),
+                    Err(e) => notes.push(format!("MusicBrainz search: {}", e.short())),
                 }
                 if found.len() >= 5 {
                     break;
@@ -235,7 +244,7 @@ impl Identifier<'_> {
             let mut release = match mb.release(id) {
                 Ok(r) => r,
                 Err(e) => {
-                    notes.push(format!("MusicBrainz release {id}: {e}"));
+                    notes.push(format!("MusicBrainz release {id}: {}", e.short()));
                     continue;
                 }
             };
@@ -256,11 +265,11 @@ impl Identifier<'_> {
                                 release.score = score_candidate(unit, &release, &matched, by_fp).saturating_sub(5);
                                 out.push(Identified { release, matched, by_fingerprint: by_fp, by_heuristic: by_heur, notes: vec![] });
                             }
-                            Err(e) => notes.push(format!("Discogs release {}: {e}", h.id)),
+                            Err(e) => notes.push(format!("Discogs release {}: {}", h.id, e.short())),
                         }
                     }
                 }
-                Err(e) => notes.push(format!("Discogs search: {e}")),
+                Err(e) => notes.push(format!("Discogs search: {}", e.short())),
             }
         }
         out.sort_by_key(|c| std::cmp::Reverse(c.release.score));
