@@ -5,6 +5,7 @@ pub mod apply;
 pub mod classify;
 pub mod config;
 pub mod containers;
+pub mod i18n;
 pub mod journal;
 pub mod model;
 pub mod naming;

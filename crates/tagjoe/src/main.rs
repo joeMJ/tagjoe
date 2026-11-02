@@ -180,7 +180,7 @@ fn build_plans(folder: &Path, cfg: &Config, kind: Option<&String>, offline: bool
     let ident = Identifier { http: &http, cfg };
     let mut plans = Vec::new();
     for u in &mut units {
-        let (base, base_match) = if u.kind == Kind::Audiobook { tagjoe_core::sources::books::offline_release(u, cfg) } else { let b = propose::release_from_unit(u); let m = propose::identity_match(u.files.len()); (b, m) };
+        let (base, base_match) = if u.kind == Kind::Audiobook { tagjoe_core::sources::books::offline_release(u, cfg) } else { (propose::release_from_unit(u), propose::identity_match(u.files.len())) };
         let mut best: Option<(propose::ReleaseInfo, Vec<Option<usize>>)> = None;
         if !offline && u.kind == Kind::Audiobook {
             let bi = BookIdentifier { http: &http, cfg };
@@ -232,7 +232,7 @@ fn build_plans(folder: &Path, cfg: &Config, kind: Option<&String>, offline: bool
                 Err(e) => eprintln!("note: identification failed: {e}"),
             }
         }
-        let (rel, matched) = best.unwrap_or_else(|| (base, base_match));
+        let (rel, matched) = best.unwrap_or((base, base_match));
         plans.push(propose::build_plan(u, &rel, &matched, cfg));
     }
     Ok(plans)

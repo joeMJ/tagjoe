@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=tagjoe
+GenericName=Audio tagger
+Comment=Check and fix tags, covers and file names of albums, compilations and audiobooks
+Comment[de]=Tags, Cover und Dateinamen von Alben, Samplern und Hörbüchern prüfen und korrigieren
+Exec=tagjoe-gui %F
+Icon=io.github.joeMJ.tagjoe
+Terminal=false
+Categories=AudioVideo;Audio;Utility;
+Keywords=tags;ID3;FLAC;MusicBrainz;cover;audiobook;Hörbuch;
+MimeType=inode/directory;
+SingleMainWindow=true

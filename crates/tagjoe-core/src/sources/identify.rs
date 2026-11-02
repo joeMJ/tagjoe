@@ -243,6 +243,26 @@ impl Identifier<'_> {
             release.score = score_candidate(unit, &release, &matched, by_fp);
             out.push(Identified { release, matched, by_fingerprint: by_fp, by_heuristic: by_heur, notes: vec![] });
         }
+        // 4. Discogs (optional, needs a token)
+        if self.cfg.sources.discogs_enabled && !self.cfg.sources.discogs_token.trim().is_empty() && !self.http.offline && !album.trim().is_empty() {
+            let dc = super::discogs::Discogs { http: self.http, token: &self.cfg.sources.discogs_token };
+            match dc.search(&album, &artist, 5) {
+                Ok(hits) => {
+                    for (i, h) in hits.iter().take(2).enumerate() {
+                        progress("discogs", i + 1, hits.len().min(2));
+                        match dc.release(h.id) {
+                            Ok(mut release) => {
+                                let (matched, by_fp, by_heur) = match_tracks(unit, &release, &rec_hits);
+                                release.score = score_candidate(unit, &release, &matched, by_fp).saturating_sub(5);
+                                out.push(Identified { release, matched, by_fingerprint: by_fp, by_heuristic: by_heur, notes: vec![] });
+                            }
+                            Err(e) => notes.push(format!("Discogs release {}: {e}", h.id)),
+                        }
+                    }
+                }
+                Err(e) => notes.push(format!("Discogs search: {e}")),
+            }
+        }
         out.sort_by_key(|c| std::cmp::Reverse(c.release.score));
         out.truncate(max_candidates.max(1));
         if let Some(first) = out.first_mut() {

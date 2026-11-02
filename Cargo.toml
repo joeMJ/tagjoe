@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/tagjoe-core", "crates/tagjoe"]
+members = ["crates/tagjoe-core", "crates/tagjoe", "crates/tagjoe-gui"]
 
 [workspace.package]
 version = "0.1.0"

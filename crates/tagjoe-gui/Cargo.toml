@@ -1,0 +1,17 @@
+[package]
+name = "tagjoe-gui"
+description = "tagjoe desktop application (iced)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "tagjoe-gui"
+path = "src/main.rs"
+
+[dependencies]
+tagjoe-core = { path = "../tagjoe-core" }
+iced = { version = "0.14", features = ["image", "tokio", "advanced"] }
+

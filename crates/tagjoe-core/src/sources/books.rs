@@ -45,11 +45,12 @@ fn normalize_author(s: &str) -> String {
 
 pub fn hints(unit: &Unit) -> BookHints {
     let base = propose::release_from_unit(unit);
-    let mut h = BookHints::default();
-    h.title = clean_title(base.album.get(&Field::Album).map(String::as_str).unwrap_or(""));
-    h.author = base.album.get(&Field::AlbumArtist).cloned().unwrap_or_default();
-    h.series = base.album.get(&Field::Series).cloned().unwrap_or_default();
-    h.asin = base.album.get(&Field::Asin).cloned().unwrap_or_default();
+    let mut h = BookHints {
+        title: clean_title(base.album.get(&Field::Album).map(String::as_str).unwrap_or("")),
+        author: base.album.get(&Field::AlbumArtist).cloned().unwrap_or_default(),
+        series: base.album.get(&Field::Series).cloned().unwrap_or_default(),
+        asin: base.album.get(&Field::Asin).cloned().unwrap_or_default(),
+    };
     // folder structure
     let parts: Vec<String> = unit.path.iter().map(|p| p.to_string_lossy().to_string()).collect();
     let n = parts.len();

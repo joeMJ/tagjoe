@@ -6,6 +6,7 @@ pub mod audiobookdb;
 pub mod audnexus;
 pub mod books;
 pub mod caa;
+pub mod discogs;
 pub mod fingerprint;
 pub mod http;
 pub mod identify;
