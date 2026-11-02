@@ -1,0 +1,15 @@
+[package]
+name = "tagjoe-core"
+description = "Core library of tagjoe: scan, check, propose and apply audio tags and file names"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+
+[dependencies]
+lofty.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+toml.workspace = true
+image.workspace = true

@@ -1,0 +1,17 @@
+[package]
+name = "tagjoe"
+description = "tagjoe command line: scan, propose, clean, apply and undo audio tag and file name fixes"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "tagjoe"
+path = "src/main.rs"
+
+[dependencies]
+tagjoe-core = { path = "../tagjoe-core" }
+clap.workspace = true
+serde_json.workspace = true
