@@ -28,6 +28,8 @@ pub enum JobState {
     Scanning,
     Identifying(String),
     Ready,
+    /// Apply requested while another folder is being written; starts when that one finishes.
+    Waiting,
     Applying,
     Done(String),
     Failed(String),
@@ -46,6 +48,10 @@ pub struct Job {
     pub cover_override: Option<CoverSource>,
     pub cover_handle: Option<image::Handle>,
     pub notes: Vec<String>,
+    /// Failed files of the last run (shown in red in the release card).
+    pub errors: Vec<String>,
+    /// Plan queued while another folder is being written.
+    pub pending: Option<Plan>,
     pub cover_input: String,
     pub result: Option<ApplyResult>,
     /// Files whose rename is switched off.
@@ -106,6 +112,8 @@ pub struct App {
     /// Activity log, newest first (this session plus the tail of log.txt).
     pub log: Vec<LogLine>,
     pub log_open: bool,
+    /// Log panel: show only lines of the selected folder.
+    pub log_only_selected: bool,
     /// Update banner state.
     pub update: Option<UpdateState>,
     /// Progress of a running scan: (files read, total, current file).
@@ -157,6 +165,7 @@ pub enum Message {
     ApplyProgress(usize, Progress),
     Applied(usize, ApplyResult),
     ToggleLog,
+    ToggleLogOnlySelected(bool),
     ClearLog,
     ToggleCoverAll(usize, bool),
     ToggleDelete(usize, usize, bool),
@@ -212,7 +221,7 @@ fn boot() -> (App, Task<Message>) {
     let cfg = Config::load();
     tagjoe_core::i18n::init_from_env(&cfg.language);
     let panes = pane_grid::State::with_configuration(pane_grid::Configuration::Split { axis: pane_grid::Axis::Horizontal, ratio: 0.5, a: Box::new(pane_grid::Configuration::Pane(Pane::Files)), b: Box::new(pane_grid::Configuration::Pane(Pane::Fields)) });
-    let app = App { cfg: Arc::new(cfg), theme: if a.theme.as_deref() == Some("dark") { theme::dark() } else { theme::light() }, jobs: vec![], selected: None, path_input: String::new(), status: i18n::t("Drop a folder onto the window or enter a path."), settings: None, offline: a.offline, last_journal: work::last_journal(), panes, log: load_log(), log_open: false, update: None, scan_progress: None };
+    let app = App { cfg: Arc::new(cfg), theme: if a.theme.as_deref() == Some("dark") { theme::dark() } else { theme::light() }, jobs: vec![], selected: None, path_input: String::new(), status: i18n::t("Drop a folder onto the window or enter a path."), settings: None, offline: a.offline, last_journal: work::last_journal(), panes, log: load_log(), log_open: false, log_only_selected: false, update: None, scan_progress: None };
     let mut tasks = Vec::new();
     // automatic check: only when switched on, at most once a day
     if app.cfg.update_check && tagjoe_core::update::now().saturating_sub(app.cfg.update_last_check) >= tagjoe_core::update::CHECK_INTERVAL_SECS {
@@ -267,7 +276,7 @@ fn cover_handle(src: &CoverSource) -> Option<image::Handle> {
 
 impl Job {
     fn new(unit: Arc<Unit>) -> Self {
-        Job { unit, state: JobState::Scanning, candidates: vec![], chosen: None, plan: None, selected_file: 0, album_overrides: BTreeMap::new(), file_overrides: BTreeMap::new(), cover_override: None, cover_handle: None, notes: vec![], cover_input: String::new(), result: None, rename_off: BTreeSet::new(), skipped: BTreeSet::new(), skipped_removals: BTreeSet::new(), cover_off: BTreeSet::new(), cover_all: true, delete_off: BTreeSet::new(), progress: None }
+        Job { unit, state: JobState::Scanning, candidates: vec![], chosen: None, plan: None, selected_file: 0, album_overrides: BTreeMap::new(), file_overrides: BTreeMap::new(), cover_override: None, cover_handle: None, notes: vec![], errors: vec![], pending: None, cover_input: String::new(), result: None, rename_off: BTreeSet::new(), skipped: BTreeSet::new(), skipped_removals: BTreeSet::new(), cover_off: BTreeSet::new(), cover_all: true, delete_off: BTreeSet::new(), progress: None }
     }
 
     /// Reference data + matching for the current choice (candidate or tags/offline).
@@ -485,7 +494,9 @@ fn update(app: &mut App, msg: Message) -> Task<Message> {
             }
         }
         Message::RemoveJob(i) => {
-            if i < app.jobs.len() && !matches!(app.jobs[i].state, JobState::Applying) {
+            if app.jobs.iter().any(|j| j.state == JobState::Applying) {
+                app.status = i18n::t("A folder is being written – remove entries afterwards.");
+            } else if i < app.jobs.len() {
                 app.jobs.remove(i);
                 app.selected = if app.jobs.is_empty() { None } else { Some(app.selected.map(|s| if s >= app.jobs.len() { app.jobs.len() - 1 } else if s > i { s - 1 } else { s }).unwrap_or(0)) };
             }
@@ -565,6 +576,7 @@ fn update(app: &mut App, msg: Message) -> Task<Message> {
             }
         }
         Message::ToggleLog => app.log_open = !app.log_open,
+        Message::ToggleLogOnlySelected(b) => app.log_only_selected = b,
         Message::ClearLog => {
             let _ = tagjoe_core::log::clear();
             app.log.clear();
@@ -708,13 +720,15 @@ fn update(app: &mut App, msg: Message) -> Task<Message> {
                             f.cover = None;
                         }
                     }
-                    j.state = JobState::Applying;
-                    let total = plan.files.iter().filter(|f| f.apply && !f.is_noop()).count() + plan.deletions();
-                    j.progress = Some((0, total, String::new()));
-                    let unit = j.unit.path.display().to_string();
-                    app.status = format!("{} 0 {} {total}", i18n::t("Writing"), i18n::t("of"));
-                    app.log(&unit, "", &format!("{} · {total} {}", i18n::t("run started"), i18n::t("steps")), true);
-                    return work::apply_task(job, plan, app.cfg.clone());
+                    if app.jobs.iter().any(|o| o.state == JobState::Applying) {
+                        // one folder at a time: the share is slow enough as it is
+                        let j = &mut app.jobs[job];
+                        j.pending = Some(plan);
+                        j.state = JobState::Waiting;
+                        app.status = i18n::t("Queued – starts when the current folder is written.");
+                        return Task::none();
+                    }
+                    return start_apply(app, job, plan);
                 }
             }
         }
@@ -738,6 +752,7 @@ fn update(app: &mut App, msg: Message) -> Task<Message> {
             if let Some(j) = app.jobs.get_mut(job) {
                 j.progress = None;
                 j.state = if result.errors == 0 { JobState::Done(summary.clone()) } else { JobState::Failed(summary.clone()) };
+                j.errors = result.files.iter().filter(|f| !f.ok).map(|f| format!("{}: {}", f.path.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default(), f.message)).collect();
                 j.result = Some(result);
                 app.status = summary;
             }
@@ -748,6 +763,12 @@ fn update(app: &mut App, msg: Message) -> Task<Message> {
                     Some(s) if s > job => Some(s - 1),
                     other => other,
                 };
+            }
+            // next folder in the queue
+            if let Some(next) = app.jobs.iter().position(|j| j.state == JobState::Waiting) {
+                if let Some(plan) = app.jobs[next].pending.take() {
+                    return start_apply(app, next, plan);
+                }
             }
         }
         Message::Undo => {
@@ -897,6 +918,19 @@ fn update(app: &mut App, msg: Message) -> Task<Message> {
         Message::ToggleOffline(b) => app.offline = b,
     }
     Task::none()
+}
+
+/// Start writing one folder: progress at zero, log line, background task.
+fn start_apply(app: &mut App, job: usize, plan: Plan) -> Task<Message> {
+    let Some(j) = app.jobs.get_mut(job) else { return Task::none() };
+    j.state = JobState::Applying;
+    j.errors.clear();
+    let total = plan.files.iter().filter(|f| f.apply && !f.is_noop()).count() + plan.deletions();
+    j.progress = Some((0, total, String::new()));
+    let unit = j.unit.path.display().to_string();
+    app.status = format!("{} 0 {} {total}", i18n::t("Writing"), i18n::t("of"));
+    app.log(&unit, "", &format!("{} · {total} {}", i18n::t("run started"), i18n::t("steps")), true);
+    work::apply_task(job, plan, app.cfg.clone())
 }
 
 /// Open a web address in the system browser (no extra dependency).

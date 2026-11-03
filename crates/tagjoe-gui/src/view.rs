@@ -46,6 +46,7 @@ fn queue_entry<'a>(i: usize, job: &'a Job, selected: bool) -> Element<'a, Messag
                 text(format!("● {incomplete} {}{}", t("incomplete"), if no_cover > 0 { format!(" · {}", t("cover missing")) } else { String::new() })).size(12).style(th::warn).into()
             }
         }
+        JobState::Waiting => text(format!("● {}", t("waiting – written after the current folder"))).size(12).style(th::info).into(),
         JobState::Applying => text(format!("● {}", t("writing…"))).size(12).style(th::info).into(),
         JobState::Done(m) => text(format!("● {m}")).size(12).style(th::ok).into(),
         JobState::Failed(m) => text(format!("● {m}")).size(12).style(th::err).into(),
@@ -177,6 +178,9 @@ fn release_card<'a>(app: &'a App, job_idx: usize, job: &'a Job) -> Element<'a, M
     .wrap();
     let info = column![text(title).size(16), text(line1).size(13).style(th::dim), text(line2).size(12).style(th::dim), cover_line, cands, cover_tools].spacing(4);
     let mut notes = column![].spacing(2);
+    for e in &job.errors {
+        notes = notes.push(text(format!("{} {e}", t("Error:"))).size(11).style(th::err));
+    }
     for n in &job.notes {
         notes = notes.push(text(n.clone()).size(11).style(th::dim));
     }
@@ -389,7 +393,7 @@ fn footer<'a>(app: &'a App, job_idx: Option<usize>, job: Option<&'a Job>) -> Ele
             status,
             text(journal).size(11).style(th::dim),
             button(text(if app.log_open { format!("▾ {log_label}") } else { format!("▸ {log_label}") }).size(13)).on_press(Message::ToggleLog).style(button::secondary).padding([6, 10]),
-            button(text(t("Remove from queue")).size(13)).on_press_maybe(job_idx.filter(|_| job.map(|j| j.state != JobState::Applying).unwrap_or(false)).map(Message::RemoveJob)).style(button::secondary).padding([6, 10]),
+            button(text(t("Remove from queue")).size(13)).on_press_maybe(job_idx.filter(|_| !app.jobs.iter().any(|j| j.state == JobState::Applying)).map(Message::RemoveJob)).style(button::secondary).padding([6, 10]),
             button(text(t("Clean only")).size(13)).on_press_maybe(job_idx.filter(|_| ready).map(Message::CleanOnly)).style(button::secondary).padding([6, 10]),
             button(text({
                 let d = job.and_then(|j| j.plan.as_ref()).map(|p| p.deletions()).unwrap_or(0);
@@ -508,8 +512,9 @@ fn update_banner(u: &UpdateState) -> Element<'_, Message> {
 
 /// Collapsible activity log above the footer: newest first, this session plus log.txt.
 fn log_panel(app: &App) -> Element<'_, Message> {
+    let selected_unit = app.selected.and_then(|i| app.jobs.get(i)).map(|j| j.unit.path.display().to_string());
     let mut rows = column![].spacing(1);
-    for l in app.log.iter().take(500) {
+    for l in app.log.iter().filter(|l| !app.log_only_selected || selected_unit.as_deref().is_some_and(|u| l.unit == u)).take(500) {
         let style: fn(&Theme) -> text::Style = if l.ok { th::dim } else { th::err };
         let unit = l.unit.rsplit('/').next().unwrap_or(&l.unit).to_string();
         rows = rows.push(
@@ -525,8 +530,10 @@ fn log_panel(app: &App) -> Element<'_, Message> {
     let empty = app.log.is_empty();
     let head = row![
         text(format!("{} · {}", t("LOG"), tagjoe_core::log::log_path().display())).size(12).style(th::dim).width(Fill),
+        checkbox(app.log_only_selected).label(t("only this folder")).on_toggle_maybe(selected_unit.as_ref().map(|_| Message::ToggleLogOnlySelected)).size(16).text_size(12),
         button(text(t("Clear log")).size(12)).on_press_maybe(if empty { None } else { Some(Message::ClearLog) }).style(button::secondary).padding([3, 8]),
     ]
+    .spacing(12)
     .align_y(iced::Center);
     let body: Element<'_, Message> = if empty { text(t("Nothing written yet.")).size(12).style(th::dim).into() } else { scrollable(rows).height(Fill).into() };
     container(column![head, rule::horizontal(1), body].spacing(6)).padding([6, 12]).width(Fill).height(Length::Fixed(200.0)).style(th::header_bar).into()
