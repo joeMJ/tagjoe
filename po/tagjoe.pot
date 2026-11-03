@@ -190,7 +190,7 @@ msgstr ""
 msgid "Cannot start the installer"
 msgstr ""
 
-#: crates/tagjoe-gui/src/main.rs:904 crates/tagjoe-gui/src/view.rs:71
+#: crates/tagjoe-gui/src/main.rs:915 crates/tagjoe-gui/src/view.rs:71
 msgid "tagjoe"
 msgstr ""
 
@@ -936,6 +936,10 @@ msgstr ""
 
 #: crates/tagjoe-gui/src/view.rs:63
 msgid "Drop a folder here (Wayland: use “Open folder…”)"
+msgstr ""
+
+#: crates/tagjoe-gui/src/view.rs:63
+msgid "Drop a folder here or use “Open folder…”"
 msgstr ""
 
 #: crates/tagjoe-gui/src/view.rs:63

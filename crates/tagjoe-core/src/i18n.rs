@@ -84,7 +84,24 @@ pub fn env_languages() -> Vec<String> {
             }
         }
     }
+    // Windows sets none of these: ask the user's culture once (e.g. "de-DE"), without a crate.
+    if out.is_empty() && cfg!(windows) {
+        if let Some(c) = windows_culture() {
+            out.push(c);
+        }
+    }
     out
+}
+
+#[cfg(windows)]
+fn windows_culture() -> Option<String> {
+    let o = std::process::Command::new("powershell").args(["-NoProfile", "-NonInteractive", "-Command", "(Get-Culture).Name"]).output().ok()?;
+    let s = String::from_utf8_lossy(&o.stdout).trim().replace('-', "_");
+    (!s.is_empty()).then_some(s)
+}
+#[cfg(not(windows))]
+fn windows_culture() -> Option<String> {
+    None
 }
 
 /// Translation of a fixed text.

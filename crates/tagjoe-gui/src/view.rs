@@ -60,7 +60,7 @@ fn sidebar(app: &App) -> Element<'_, Message> {
     for (i, j) in app.jobs.iter().enumerate() {
         list = list.push(queue_entry(i, j, app.selected == Some(i)));
     }
-    let drop = container(column![text(t("Drop a folder here (Wayland: use “Open folder…”)")).size(13).center(), text(t("or enter a path above")).size(12)].spacing(2).align_x(iced::Center)).padding(14).width(Fill).style(th::drop_zone);
+    let drop = container(column![text(if cfg!(target_os = "linux") { t("Drop a folder here (Wayland: use “Open folder…”)") } else { t("Drop a folder here or use “Open folder…”") }).size(13).center(), text(t("or enter a path above")).size(12)].spacing(2).align_x(iced::Center)).padding(14).width(Fill).style(th::drop_zone);
     let input = row![text_input(&t("Folder path…"), &app.path_input).on_input(Message::PathInput).on_submit(Message::AddPath).size(13).padding(6), button(text(t("Add")).size(13)).on_press(Message::AddPath).padding([6, 10]).style(button::secondary)].spacing(6);
     let open = button(text(t("Open folder…")).size(13)).on_press(Message::OpenFolderPicker).padding([6, 10]).style(button::primary).width(Fill);
     container(column![text(t("QUEUE")).size(12).style(th::dim), open, input, scrollable(list).height(Fill), drop].spacing(10).padding(10)).width(300).height(Fill).style(th::sidebar).into()

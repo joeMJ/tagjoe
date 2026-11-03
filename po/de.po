@@ -201,7 +201,7 @@ msgstr ""
 msgid "Cannot start the installer"
 msgstr "Installation lässt sich nicht starten"
 
-#: crates/tagjoe-gui/src/main.rs:904 crates/tagjoe-gui/src/view.rs:71
+#: crates/tagjoe-gui/src/main.rs:915 crates/tagjoe-gui/src/view.rs:71
 msgid "tagjoe"
 msgstr ""
 
@@ -221,7 +221,9 @@ msgstr "fpcalc gefunden:"
 msgid ""
 "fpcalc missing – install the package libchromaprint-tools, or let tagjoe "
 "download it:"
-msgstr "fpcalc fehlt – Paket libchromaprint-tools installieren oder von tagjoe laden lassen:"
+msgstr ""
+"fpcalc fehlt – Paket libchromaprint-tools installieren oder von tagjoe laden "
+"lassen:"
 
 #: crates/tagjoe-gui/src/settings.rs:257
 msgid "fpcalc missing – let tagjoe download it:"
@@ -235,7 +237,9 @@ msgstr "fpcalc herunterladen"
 msgid ""
 "from github.com/acoustid/chromaprint, SHA-256 checked, into tagjoe's own "
 "folder"
-msgstr "von github.com/acoustid/chromaprint, SHA-256 geprüft, in den eigenen Werkzeugordner"
+msgstr ""
+"von github.com/acoustid/chromaprint, SHA-256 geprüft, in den eigenen "
+"Werkzeugordner"
 
 #: crates/tagjoe-gui/src/settings.rs:271
 msgid "Use this source"
@@ -1065,6 +1069,10 @@ msgstr "Noch nichts geschrieben."
 #: crates/tagjoe-gui/src/view.rs:63
 msgid "Drop a folder here (Wayland: use “Open folder…”)"
 msgstr "Ordner hierher ziehen (Wayland: „Ordner öffnen…“)"
+
+#: crates/tagjoe-gui/src/view.rs:63
+msgid "Drop a folder here or use “Open folder…”"
+msgstr "Ordner hierher ziehen oder „Ordner öffnen…“ verwenden"
 
 #: crates/tagjoe-gui/src/view.rs:63
 msgid "or enter a path above"
