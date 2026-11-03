@@ -42,13 +42,16 @@ pub struct ApplyResult {
 /// One step of an apply run, reported after each file (and each deletion).
 #[derive(Debug, Clone, PartialEq)]
 pub struct Progress {
-    /// Steps done so far (1-based after the first file).
+    /// Steps finished so far.
     pub done: usize,
     /// Audio files to write plus files to delete.
     pub total: usize,
     pub path: PathBuf,
     pub ok: bool,
     pub message: String,
+    /// False when reported right before a file is written (so the name shows at once),
+    /// true once the step is done.
+    pub finished: bool,
 }
 
 fn eq_name(a: &str, b: &str) -> bool {
@@ -439,16 +442,17 @@ pub fn apply_with_progress(plan: &Plan, cfg: &Config, journal_dir: &Path, progre
         if !fp.apply || fp.is_noop() {
             continue;
         }
+        progress(&Progress { done, total, path: fp.path.clone(), ok: true, message: "writing".into(), finished: false });
         done += 1;
         match apply_file(fp, cfg, journal_dir, &run_id, i) {
             Ok((entry, new_path, msg)) => {
                 journal.entries.push(entry);
-                progress(&Progress { done, total, path: fp.path.clone(), ok: true, message: msg.clone() });
+                progress(&Progress { done, total, path: fp.path.clone(), ok: true, message: msg.clone(), finished: true });
                 result.files.push(FileResult { path: fp.path.clone(), new_path, ok: true, message: msg });
             }
             Err(e) => {
                 result.errors += 1;
-                progress(&Progress { done, total, path: fp.path.clone(), ok: false, message: e.clone() });
+                progress(&Progress { done, total, path: fp.path.clone(), ok: false, message: e.clone(), finished: true });
                 result.files.push(FileResult { path: fp.path.clone(), new_path: fp.path.clone(), ok: false, message: e });
             }
         }
@@ -468,12 +472,12 @@ pub fn apply_with_progress(plan: &Plan, cfg: &Config, journal_dir: &Path, progre
                 Ok(()) => {
                     journal.deleted.push(p.clone());
                     result.deleted.push(p.clone());
-                    progress(&Progress { done, total, path: p.clone(), ok: true, message: "deleted".into() });
+                    progress(&Progress { done, total, path: p.clone(), ok: true, message: "deleted".into(), finished: true });
                     result.files.push(FileResult { path: p.clone(), new_path: p.clone(), ok: true, message: "deleted".into() });
                 }
                 Err(e) => {
                     result.errors += 1;
-                    progress(&Progress { done, total, path: p.clone(), ok: false, message: e.clone() });
+                    progress(&Progress { done, total, path: p.clone(), ok: false, message: e.clone(), finished: true });
                     result.files.push(FileResult { path: p.clone(), new_path: p.clone(), ok: false, message: e });
                 }
             }

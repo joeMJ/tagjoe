@@ -22,7 +22,7 @@ msgstr ""
 msgid "Drop a folder onto the window or enter a path."
 msgstr ""
 
-#: crates/tagjoe-gui/src/main.rs:374 crates/tagjoe-gui/src/main.rs:382 crates/tagjoe-gui/src/main.rs:569
+#: crates/tagjoe-gui/src/main.rs:374 crates/tagjoe-gui/src/main.rs:382 crates/tagjoe-gui/src/main.rs:577
 msgid "Scanning"
 msgstr ""
 
@@ -42,95 +42,103 @@ msgstr ""
 msgid "Added"
 msgstr ""
 
-#: crates/tagjoe-gui/src/main.rs:530 crates/tagjoe-gui/src/main.rs:705
-msgid "error"
-msgstr ""
-
-#: crates/tagjoe-gui/src/main.rs:532 crates/tagjoe-gui/src/main.rs:672
-msgid "deleted"
-msgstr ""
-
-#: crates/tagjoe-gui/src/main.rs:540 crates/tagjoe-gui/src/view.rs:362
+#: crates/tagjoe-gui/src/main.rs:534 crates/tagjoe-gui/src/main.rs:548 crates/tagjoe-gui/src/main.rs:669 crates/tagjoe-gui/src/view.rs:362 crates/tagjoe-gui/src/view.rs:362
 msgid "Writing"
 msgstr ""
 
-#: crates/tagjoe-gui/src/main.rs:540 crates/tagjoe-gui/src/view.rs:362
+#: crates/tagjoe-gui/src/main.rs:534 crates/tagjoe-gui/src/main.rs:548 crates/tagjoe-gui/src/main.rs:669 crates/tagjoe-gui/src/view.rs:362 crates/tagjoe-gui/src/view.rs:362
 msgid "of"
 msgstr ""
 
-#: crates/tagjoe-gui/src/main.rs:565
+#: crates/tagjoe-gui/src/main.rs:538 crates/tagjoe-gui/src/main.rs:718
+msgid "error"
+msgstr ""
+
+#: crates/tagjoe-gui/src/main.rs:540 crates/tagjoe-gui/src/main.rs:685
+msgid "deleted"
+msgstr ""
+
+#: crates/tagjoe-gui/src/main.rs:573
 msgid "Choose a folder in the system dialog…"
 msgstr ""
 
-#: crates/tagjoe-gui/src/main.rs:572
+#: crates/tagjoe-gui/src/main.rs:580
 msgid "No folder chosen."
 msgstr ""
 
-#: crates/tagjoe-gui/src/main.rs:575
+#: crates/tagjoe-gui/src/main.rs:583
 msgid "Choose a cover image in the system dialog…"
 msgstr ""
 
-#: crates/tagjoe-gui/src/main.rs:583
+#: crates/tagjoe-gui/src/main.rs:591
 msgid "Cover set."
 msgstr ""
 
-#: crates/tagjoe-gui/src/main.rs:586
+#: crates/tagjoe-gui/src/main.rs:594
 msgid "No image chosen."
 msgstr ""
 
-#: crates/tagjoe-gui/src/main.rs:621
+#: crates/tagjoe-gui/src/main.rs:629
 msgid "Cover: enter an image file path or an http(s) URL."
 msgstr ""
 
-#: crates/tagjoe-gui/src/main.rs:633 crates/tagjoe-gui/src/view.rs:230
+#: crates/tagjoe-gui/src/main.rs:641 crates/tagjoe-gui/src/view.rs:230
 msgid "Cover"
 msgstr ""
 
-#: crates/tagjoe-gui/src/main.rs:666
-msgid "folder renamed"
+#: crates/tagjoe-gui/src/main.rs:670
+msgid "run started"
 msgstr ""
 
 #: crates/tagjoe-gui/src/main.rs:670
+msgid "steps"
+msgstr ""
+
+#: crates/tagjoe-gui/src/main.rs:679
+msgid "folder renamed"
+msgstr ""
+
+#: crates/tagjoe-gui/src/main.rs:683
 msgid "Written:"
 msgstr ""
 
-#: crates/tagjoe-gui/src/main.rs:670 crates/tagjoe-gui/src/main.rs:707
+#: crates/tagjoe-gui/src/main.rs:683 crates/tagjoe-gui/src/main.rs:720
 msgid "file(s)"
 msgstr ""
 
-#: crates/tagjoe-gui/src/main.rs:675
+#: crates/tagjoe-gui/src/main.rs:688
 msgid "error(s)"
 msgstr ""
 
-#: crates/tagjoe-gui/src/main.rs:677
+#: crates/tagjoe-gui/src/main.rs:690
 msgid "run finished"
 msgstr ""
 
-#: crates/tagjoe-gui/src/main.rs:695
+#: crates/tagjoe-gui/src/main.rs:708
 msgid "Undoing the last run…"
 msgstr ""
 
-#: crates/tagjoe-gui/src/main.rs:705
+#: crates/tagjoe-gui/src/main.rs:718
 msgid "undone"
 msgstr ""
 
-#: crates/tagjoe-gui/src/main.rs:707
+#: crates/tagjoe-gui/src/main.rs:720
 msgid "Undone:"
 msgstr ""
 
-#: crates/tagjoe-gui/src/main.rs:710 crates/tagjoe-gui/src/main.rs:711
+#: crates/tagjoe-gui/src/main.rs:723 crates/tagjoe-gui/src/main.rs:724
 msgid "Undo failed"
 msgstr ""
 
-#: crates/tagjoe-gui/src/main.rs:733
+#: crates/tagjoe-gui/src/main.rs:746
 msgid "Settings saved."
 msgstr ""
 
-#: crates/tagjoe-gui/src/main.rs:734
+#: crates/tagjoe-gui/src/main.rs:747
 msgid "Cannot save settings"
 msgstr ""
 
-#: crates/tagjoe-gui/src/main.rs:776 crates/tagjoe-gui/src/view.rs:71
+#: crates/tagjoe-gui/src/main.rs:789 crates/tagjoe-gui/src/view.rs:71
 msgid "tagjoe"
 msgstr ""
 

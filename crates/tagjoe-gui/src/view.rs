@@ -359,7 +359,7 @@ fn footer<'a>(app: &'a App, job_idx: Option<usize>, job: Option<&'a Job>) -> Ele
     let running = job.and_then(|j| j.progress.clone()).or_else(|| app.jobs.iter().find_map(|j| j.progress.clone()));
     let status: Element<'a, Message> = match running {
         Some((done, total, name)) => column![
-            text(format!("{} {done} {} {total} · {name}", t("Writing"), t("of"))).size(12),
+            text(if name.is_empty() { format!("{} {done} {} {total}", t("Writing"), t("of")) } else { format!("{} {} {} {total} · {name}", t("Writing"), (done + 1).min(total), t("of")) }).size(12),
             progress_bar(0.0..=total.max(1) as f32, done as f32).length(Fill).girth(6),
         ]
         .spacing(3)

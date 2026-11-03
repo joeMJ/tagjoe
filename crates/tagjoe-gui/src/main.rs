@@ -526,6 +526,14 @@ fn update(app: &mut App, msg: Message) -> Task<Message> {
         Message::ApplyProgress(job, p) => {
             let unit = app.jobs.get(job).map(|j| j.unit.path.display().to_string()).unwrap_or_default();
             let name = p.path.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+            if !p.finished {
+                // announced before the write: show the name at once, nothing to log yet
+                if let Some(j) = app.jobs.get_mut(job) {
+                    j.progress = Some((p.done, p.total, name.clone()));
+                }
+                app.status = format!("{} {} {} {} · {name}", i18n::t("Writing"), p.done + 1, i18n::t("of"), p.total);
+                return Task::none();
+            }
             let action = if !p.ok {
                 format!("{}: {}", i18n::t("error"), p.message)
             } else if p.message == "deleted" {
@@ -655,6 +663,11 @@ fn update(app: &mut App, msg: Message) -> Task<Message> {
                         }
                     }
                     j.state = JobState::Applying;
+                    let total = plan.files.iter().filter(|f| f.apply && !f.is_noop()).count() + plan.deletions();
+                    j.progress = Some((0, total, String::new()));
+                    let unit = j.unit.path.display().to_string();
+                    app.status = format!("{} 0 {} {total}", i18n::t("Writing"), i18n::t("of"));
+                    app.log(&unit, "", &format!("{} · {total} {}", i18n::t("run started"), i18n::t("steps")), true);
                     return work::apply_task(job, plan, app.cfg.clone());
                 }
             }

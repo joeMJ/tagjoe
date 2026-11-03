@@ -61,11 +61,16 @@ fn deletes_after_clean_run_and_reports_progress() {
     assert_eq!(plan.deletions(), 5);
     // the user keeps the playlist
     plan.delete_files.iter_mut().find(|d| d.path.ends_with("Playlist.M3U")).unwrap().apply = false;
-    let mut steps: Vec<Progress> = vec![];
-    let r = apply_with_progress(&plan, &cfg, &jdir, &mut |p| steps.push(p.clone()));
+    let mut all: Vec<Progress> = vec![];
+    let r = apply_with_progress(&plan, &cfg, &jdir, &mut |p| all.push(p.clone()));
     assert_eq!(r.errors, 0, "{:?}", r.files);
+    let starts: Vec<&Progress> = all.iter().filter(|p| !p.finished).collect();
+    let steps: Vec<&Progress> = all.iter().filter(|p| p.finished).collect();
+    assert_eq!(starts.len(), 4, "every audio file is announced before it is written");
+    assert_eq!(starts[0].done, 0);
+    assert_eq!(starts[0].message, "writing");
     assert_eq!(steps.len(), 4 + 4, "four audio files and four deletions reported");
-    assert!(steps.iter().all(|s| s.total == 8 && s.ok));
+    assert!(all.iter().all(|s| s.total == 8 && s.ok));
     assert_eq!(steps.last().unwrap().done, 8);
     assert_eq!(r.deleted.len(), 4);
     let left = names(&unit_path);
