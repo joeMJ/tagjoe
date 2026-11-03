@@ -227,6 +227,8 @@ msgid ""
 "Installer started – the system asks for your password. Restart tagjoe "
 "afterwards."
 msgstr ""
+"Installer gestartet – das System fragt nach Ihrem Passwort. Danach tagjoe neu "
+"starten."
 "Installation gestartet – das System fragt nach dem Kennwort. Danach tagjoe "
 "neu starten."
 

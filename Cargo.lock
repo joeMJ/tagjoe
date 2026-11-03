@@ -4310,7 +4310,7 @@ dependencies = [
 
 [[package]]
 name = "tagjoe"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "clap",
  "serde_json",
@@ -4319,7 +4319,7 @@ dependencies = [
 
 [[package]]
 name = "tagjoe-core"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "image",
  "lofty",
@@ -4332,7 +4332,7 @@ dependencies = [
 
 [[package]]
 name = "tagjoe-gui"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "iced",
  "rfd",
