@@ -432,7 +432,7 @@ pub fn main(app: &App) -> Element<'_, Message> {
             .height(Fill);
             column![bar, release_card(app, i, j), split].spacing(10).padding(10).into()
         }
-        None => container(column![text(t("Drop a folder (album, compilation or audiobook) onto the window.")).size(16), text(t("tagjoe reads every file, checks each tag field, proposes tags, cover and file names – nothing is written until you click Apply.")).size(13).style(th::dim)].spacing(8).align_x(iced::Center)).center(Fill).into(),
+        None => empty_state(),
     };
     let body = row![sidebar(app), container(main).width(Fill).height(Fill)].height(Fill);
     let mut col = column![header(app)];
@@ -444,6 +444,21 @@ pub fn main(app: &App) -> Element<'_, Message> {
         col = col.push(log_panel(app));
     }
     col.push(footer(app, job.map(|(i, _)| i), job.map(|(_, j)| j))).into()
+}
+
+/// Main area without a folder: hint in the middle, logo with the project address bottom right.
+fn empty_state<'a>() -> Element<'a, Message> {
+    static LOGO: &[u8] = include_bytes!("../../../data/icons/io.github.joeMJ.tagjoe-256.png");
+    let hint = container(column![text(t("Drop a folder (album, compilation or audiobook) onto the window.")).size(16), text(t("tagjoe reads every file, checks each tag field, proposes tags, cover and file names – nothing is written until you click Apply.")).size(13).style(th::dim)].spacing(8).align_x(iced::Center)).center(Fill);
+    let url = "https://github.com/joeMJ/tagjoe";
+    let logo = column![
+        button(image(image::Handle::from_bytes(LOGO)).width(160).height(160)).on_press(Message::OpenUrl(url.to_string())).style(button::text).padding(0),
+        button(text(url.trim_start_matches("https://")).size(12).style(th::info)).on_press(Message::OpenUrl(url.to_string())).style(button::text).padding(0),
+        text(format!("tagjoe {}", tagjoe_core::VERSION)).size(11).style(th::dim),
+    ]
+    .spacing(2)
+    .align_x(iced::Center);
+    column![hint, container(logo).width(Fill).align_x(iced::alignment::Horizontal::Right).padding([0, 16])].height(Fill).into()
 }
 
 /// Update banner under the header: offer, download, verified package, errors.
