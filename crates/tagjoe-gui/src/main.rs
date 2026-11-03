@@ -899,6 +899,17 @@ fn view(app: &App) -> Element<'_, Message> {
     view::main(app)
 }
 
+/// Linux: the application id lets Wayland/X11 match the window to the .desktop file (icon, dock).
+/// Other systems have no such field in iced's `PlatformSpecific`.
+#[cfg(target_os = "linux")]
+fn platform_settings() -> window::settings::PlatformSpecific {
+    window::settings::PlatformSpecific { application_id: "io.github.joeMJ.tagjoe".into(), ..Default::default() }
+}
+#[cfg(not(target_os = "linux"))]
+fn platform_settings() -> window::settings::PlatformSpecific {
+    Default::default()
+}
+
 fn main() -> iced::Result {
     iced::application(boot, update, view)
         .title(|_: &App| i18n::t("tagjoe"))
@@ -910,7 +921,7 @@ fn main() -> iced::Result {
             // X11/Windows: window icon; Wayland: the application id matches the .desktop file,
             // so the desktop shows the installed icon.
             icon: window::icon::from_file_data(include_bytes!("../../../data/icons/io.github.joeMJ.tagjoe-256.png"), None).ok(),
-            platform_specific: window::settings::PlatformSpecific { application_id: "io.github.joeMJ.tagjoe".into(), ..Default::default() },
+            platform_specific: platform_settings(),
             ..Default::default()
         })
         .run()
