@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Builds tagjoe for Windows: programs, staging folder with licence texts, signed MSI.
 
