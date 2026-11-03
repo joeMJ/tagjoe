@@ -800,6 +800,12 @@ fn update(app: &mut App, msg: Message) -> Task<Message> {
             if let Some((from, to)) = &result.folder {
                 app.log(&unit, "", &format!("{} {} → {}", i18n::t("folder renamed"), from.display(), to.display()), true);
             }
+            // folder-level results (rename, journal, clean-up note) are not reported per file
+            let unit_path = app.jobs.get(job).map(|j| j.unit.path.clone()).unwrap_or_default();
+            for f in result.files.iter().filter(|f| f.path == unit_path) {
+                let action = if f.ok { f.message.clone() } else { format!("{}: {}", i18n::t("error"), f.message) };
+                app.log(&unit, "", &action, f.ok);
+            }
             let written = result.files.iter().filter(|f| f.ok && f.message != "deleted").count();
             let deleted = result.deleted.len();
             let mut summary = format!("{} {written} {}", i18n::t("Written:"), i18n::t("file(s)"));
