@@ -338,6 +338,28 @@ pub fn scale_cover(data: &[u8], max_px: u32) -> Result<Vec<u8>, String> {
     Ok(out.into_inner())
 }
 
+/// Waits between rename attempts (0.5 s, 1 s, 2 s): network shares (SMB) sometimes refuse a
+/// rename for a moment – access denied, busy – although it succeeds a second later.
+pub const RENAME_DELAYS_MS: [u64; 3] = [500, 1000, 2000];
+
+/// Rename with retries; returns the number of attempts it took. Every error is retried once
+/// per delay, so the caller sees an error only after `delays.len() + 1` attempts.
+pub fn rename_retry(from: &Path, to: &Path, delays: &[u64]) -> Result<usize, std::io::Error> {
+    let mut attempt = 0;
+    loop {
+        attempt += 1;
+        match std::fs::rename(from, to) {
+            Ok(()) => return Ok(attempt),
+            Err(_) if attempt <= delays.len() => std::thread::sleep(std::time::Duration::from_millis(delays[attempt - 1])),
+            Err(e) => return Err(e),
+        }
+    }
+}
+
+fn attempts_note(attempts: usize) -> String {
+    if attempts > 1 { format!(" (attempt {attempts})") } else { String::new() }
+}
+
 /// Unique target path: errors when a different file already exists there.
 fn check_target(from: &Path, to: &Path) -> Result<(), String> {
     if to == from {
@@ -415,9 +437,9 @@ fn apply_file(fp: &FilePlan, cfg: &Config, journal_dir: &Path, run_id: &str, ind
     if let Some(n) = &fp.new_name {
         let to = path.parent().map(PathBuf::from).unwrap_or_default().join(n);
         check_target(path, &to)?;
-        std::fs::rename(path, &to).map_err(|e| format!("rename: {e}"))?;
+        let attempts = rename_retry(path, &to, &RENAME_DELAYS_MS).map_err(|e| format!("rename: {e} (after {} attempts)", RENAME_DELAYS_MS.len() + 1))?;
         entry.new_path = to.clone();
-        actions.push("renamed".into());
+        actions.push(format!("renamed{}", attempts_note(attempts)));
     }
     let new_path = entry.new_path.clone();
     Ok((entry, new_path, if actions.is_empty() { "nothing to do".into() } else { actions.join(", ") }))
@@ -486,16 +508,19 @@ pub fn apply_with_progress(plan: &Plan, cfg: &Config, journal_dir: &Path, progre
         result.files.push(FileResult { path: plan.unit.clone(), new_path: plan.unit.clone(), ok: true, message: format!("{} file(s) not deleted because of errors", deletions.len()) });
     }
     if let Some(nf) = &plan.new_folder {
-        match (|| -> Result<(), String> {
+        match (|| -> Result<usize, String> {
             if let Some(parent) = nf.parent() {
                 std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
             }
             check_target(&plan.unit, nf)?;
-            std::fs::rename(&plan.unit, nf).map_err(|e| format!("rename folder: {e}"))
+            rename_retry(&plan.unit, nf, &RENAME_DELAYS_MS).map_err(|e| format!("rename folder: {e} (after {} attempts)", RENAME_DELAYS_MS.len() + 1))
         })() {
-            Ok(()) => {
+            Ok(attempts) => {
                 journal.new_folder = Some(nf.clone());
                 result.folder = Some((plan.unit.clone(), nf.clone()));
+                if attempts > 1 {
+                    result.files.push(FileResult { path: plan.unit.clone(), new_path: nf.clone(), ok: true, message: format!("folder renamed{}", attempts_note(attempts)) });
+                }
             }
             Err(e) => {
                 result.errors += 1;
@@ -525,8 +550,8 @@ pub fn undo(journal: &Journal, cfg: &Config) -> ApplyResult {
     let mut base_map: Option<(PathBuf, PathBuf)> = None;
     if let Some(nf) = &journal.new_folder {
         if nf.exists() {
-            match std::fs::rename(nf, &journal.unit) {
-                Ok(()) => {
+            match rename_retry(nf, &journal.unit, &RENAME_DELAYS_MS) {
+                Ok(_) => {
                     result.folder = Some((nf.clone(), journal.unit.clone()));
                     base_map = Some((nf.clone(), journal.unit.clone()));
                 }
@@ -555,7 +580,7 @@ pub fn undo(journal: &Journal, cfg: &Config) -> ApplyResult {
             }
             if current != original {
                 check_target(&current, &original)?;
-                std::fs::rename(&current, &original).map_err(|err| format!("rename back: {err}"))?;
+                rename_retry(&current, &original, &RENAME_DELAYS_MS).map_err(|err| format!("rename back: {err}"))?;
                 actions.push("name".into());
             }
             let p = original.as_path();
@@ -604,4 +629,42 @@ pub fn undo(journal: &Journal, cfg: &Config) -> ApplyResult {
         }
     }
     result
+}
+
+#[cfg(test)]
+mod rename_tests {
+    use super::rename_retry;
+
+    fn dir(name: &str) -> std::path::PathBuf {
+        let d = std::env::temp_dir().join(format!("tagjoe-rename-{name}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        std::fs::create_dir_all(&d).unwrap();
+        d
+    }
+
+    #[test]
+    fn succeeds_on_a_later_attempt() {
+        let d = dir("later");
+        let (from, to) = (d.join("a"), d.join("b"));
+        let f = from.clone();
+        // the source appears only after the first attempt has failed
+        std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_millis(60));
+            std::fs::write(f, b"x").unwrap();
+        });
+        let attempts = rename_retry(&from, &to, &[40, 40, 40, 40, 40, 40]).unwrap();
+        assert!(attempts > 1 && attempts <= 7, "attempts: {attempts}");
+        assert!(to.exists() && !from.exists());
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn gives_up_after_the_last_delay() {
+        let d = dir("giveup");
+        let t = std::time::Instant::now();
+        let err = rename_retry(&d.join("missing"), &d.join("b"), &[10, 10, 10]).unwrap_err();
+        assert_eq!(err.kind(), std::io::ErrorKind::NotFound);
+        assert!(t.elapsed() >= std::time::Duration::from_millis(30));
+        let _ = std::fs::remove_dir_all(&d);
+    }
 }

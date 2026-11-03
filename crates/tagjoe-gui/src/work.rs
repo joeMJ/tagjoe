@@ -77,6 +77,25 @@ pub fn identify_task(job: u64, unit: Arc<Unit>, cfg: Arc<Config>, offline: bool,
 }
 
 /// Apply a plan on a thread; one `ApplyProgress` per written or deleted file, then `Applied`.
+/// Read one folder again after a run (no progress, no identification).
+pub fn rescan_task(job: u64, path: PathBuf) -> Task<Message> {
+    Task::perform(
+        async move {
+            let (tx, rx) = iced::futures::channel::oneshot::channel();
+            std::thread::spawn(move || {
+                let mut units = scan::scan_path(&path).unwrap_or_default();
+                let unit = match units.iter().position(|u| u.path == path) {
+                    Some(i) => Some(units.swap_remove(i)),
+                    None => units.into_iter().next(),
+                };
+                let _ = tx.send(unit);
+            });
+            rx.await.unwrap_or(None)
+        },
+        move |u| Message::Rescanned(job, u),
+    )
+}
+
 pub fn apply_task(job: u64, plan: Plan, cfg: Arc<Config>) -> Task<Message> {
     let (tx, rx) = mpsc::unbounded::<Message>();
     std::thread::spawn(move || {

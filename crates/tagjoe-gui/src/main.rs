@@ -153,6 +153,8 @@ pub enum Message {
     AddPath,
     Dropped(PathBuf),
     Scanned(Arc<Unit>),
+    /// Folder read again after a run (new path, files as written); None when unreadable.
+    Rescanned(u64, Option<Unit>),
     EmbeddedCover(u64, Option<Vec<u8>>),
     Reidentify(usize),
     SearchInput(usize, String),
@@ -817,10 +819,16 @@ fn update(app: &mut App, msg: Message) -> Task<Message> {
             }
             app.log(&unit, "", &format!("{} · {summary}", i18n::t("run finished")), result.errors == 0);
             let remove = app.cfg.remove_done_from_queue && result.errors == 0;
+            let mut tasks = Vec::new();
             if let Some(j) = app.jobs.get_mut(job) {
                 j.progress = None;
                 j.state = if result.errors == 0 { JobState::Done(summary.clone()) } else { JobState::Failed(summary.clone()) };
                 j.errors = result.files.iter().filter(|f| !f.ok).map(|f| format!("{}: {}", f.path.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default(), f.message)).collect();
+                if !remove {
+                    // the folder stays in the queue: read it again so the card shows what is on disk
+                    let path = result.folder.as_ref().map(|(_, to)| to.clone()).unwrap_or_else(|| j.unit.path.clone());
+                    tasks.push(work::rescan_task(id, path));
+                }
                 j.result = Some(result);
                 app.status = summary;
             }
@@ -835,8 +843,50 @@ fn update(app: &mut App, msg: Message) -> Task<Message> {
             // next folder in the queue
             if let Some(next) = app.jobs.iter().position(|j| j.state == JobState::Waiting) {
                 if let Some(plan) = app.jobs[next].pending.take() {
-                    return start_apply(app, next, plan);
+                    tasks.push(start_apply(app, next, plan));
                 }
+            }
+            return Task::batch(tasks);
+        }
+        Message::Rescanned(id, unit) => {
+            let Some(job) = app.job_index(id) else { return Task::none() };
+            let Some(unit) = unit else { return Task::none() };
+            let j = &mut app.jobs[job];
+            // files are matched by name: a run renames them and may reorder the folder
+            let renamed: Vec<(String, String)> = j
+                .result
+                .as_ref()
+                .map(|r| r.files.iter().map(|f| (name_of(&f.path), name_of(&f.new_path))).collect())
+                .unwrap_or_default();
+            let old_names: Vec<String> = j.unit.files.iter().map(|f| name_of(&f.path)).collect();
+            for c in &mut j.candidates {
+                let old = c.matched.clone();
+                c.matched = unit
+                    .files
+                    .iter()
+                    .map(|f| {
+                        let n = name_of(&f.path);
+                        let before = renamed.iter().find(|(_, to)| *to == n).map(|(from, _)| from.clone()).unwrap_or(n);
+                        old_names.iter().position(|o| *o == before).and_then(|i| old.get(i).copied().flatten())
+                    })
+                    .collect();
+            }
+            // manual values and unchecked boxes were written or skipped by the run; start clean
+            j.album_overrides.clear();
+            j.file_overrides.clear();
+            j.cover_override = None;
+            j.rename_off.clear();
+            j.skipped.clear();
+            j.skipped_removals.clear();
+            j.cover_off.clear();
+            j.delete_off.clear();
+            j.embedded_cover = None;
+            j.selected_file = 0;
+            let cover = unit.files.iter().find(|f| f.has_cover()).map(|f| f.path.clone());
+            j.unit = Arc::new(unit);
+            j.rebuild(&app.cfg);
+            if let Some(path) = cover {
+                return work::embedded_cover_task(id, path);
             }
         }
         Message::Undo => {
@@ -989,6 +1039,10 @@ fn update(app: &mut App, msg: Message) -> Task<Message> {
 }
 
 /// Start writing one folder: progress at zero, log line, background task.
+fn name_of(p: &std::path::Path) -> String {
+    p.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default()
+}
+
 fn start_apply(app: &mut App, job: usize, plan: Plan) -> Task<Message> {
     let Some(j) = app.jobs.get_mut(job) else { return Task::none() };
     j.state = JobState::Applying;
