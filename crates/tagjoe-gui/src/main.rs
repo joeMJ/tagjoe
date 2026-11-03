@@ -1,5 +1,8 @@
 //! tagjoe desktop application (iced).
 #![forbid(unsafe_code)]
+// Windows: a window program, not a console program (otherwise Windows opens a console behind
+// the window and closing it ends tagjoe). The command line stays in tagjoe.exe.
+#![cfg_attr(windows, windows_subsystem = "windows")]
 
 mod i18n;
 mod settings;
