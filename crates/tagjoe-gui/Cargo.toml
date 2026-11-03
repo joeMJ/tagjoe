@@ -14,4 +14,5 @@ path = "src/main.rs"
 [dependencies]
 tagjoe-core = { path = "../tagjoe-core" }
 iced = { version = "0.14", features = ["image", "tokio", "advanced"] }
+rfd.workspace = true
 

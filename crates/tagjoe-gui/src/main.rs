@@ -2,7 +2,6 @@
 #![forbid(unsafe_code)]
 
 mod i18n;
-mod picker;
 mod settings;
 mod theme;
 mod view;
@@ -73,7 +72,6 @@ pub struct App {
     pub offline: bool,
     pub last_journal: Option<String>,
     pub panes: pane_grid::State<Pane>,
-    pub picker: Option<picker::Picker>,
 }
 
 #[derive(Debug, Clone)]
@@ -113,8 +111,9 @@ pub enum Message {
     ToggleRenameAll(usize, bool),
     PaneResized(pane_grid::ResizeEvent),
     OpenFolderPicker,
+    FolderPicked(Option<PathBuf>),
     OpenCoverPicker(usize),
-    Picker(picker::PickerMessage),
+    CoverPicked(usize, Option<PathBuf>),
     OpenUrl(String),
 }
 
@@ -147,7 +146,7 @@ fn boot() -> (App, Task<Message>) {
     let cfg = Config::load();
     tagjoe_core::i18n::init_from_env(&cfg.language);
     let panes = pane_grid::State::with_configuration(pane_grid::Configuration::Split { axis: pane_grid::Axis::Horizontal, ratio: 0.5, a: Box::new(pane_grid::Configuration::Pane(Pane::Files)), b: Box::new(pane_grid::Configuration::Pane(Pane::Fields)) });
-    let app = App { cfg: Arc::new(cfg), theme: if a.theme.as_deref() == Some("dark") { theme::dark() } else { theme::light() }, jobs: vec![], selected: None, path_input: String::new(), status: i18n::t("Drop a folder onto the window or enter a path."), settings: None, offline: a.offline, last_journal: work::last_journal(), panes, picker: None };
+    let app = App { cfg: Arc::new(cfg), theme: if a.theme.as_deref() == Some("dark") { theme::dark() } else { theme::light() }, jobs: vec![], selected: None, path_input: String::new(), status: i18n::t("Drop a folder onto the window or enter a path."), settings: None, offline: a.offline, last_journal: work::last_journal(), panes };
     let mut tasks = Vec::new();
     if a.theme.is_none() {
         tasks.push(iced::system::theme().map(Message::SystemTheme));
@@ -422,37 +421,28 @@ fn update(app: &mut App, msg: Message) -> Task<Message> {
         Message::PaneResized(e) => app.panes.resize(e.split, e.ratio.clamp(0.15, 0.85)),
         Message::OpenFolderPicker => {
             let start = app.selected.and_then(|i| app.jobs.get(i)).and_then(|j| j.unit.path.parent().map(|p| p.to_path_buf()));
-            app.picker = Some(picker::Picker::new(picker::PickMode::Folder, None, start.as_deref()));
+            app.status = i18n::t("Choose a folder in the system dialog…");
+            return work::pick_folder_task(start);
         }
+        Message::FolderPicked(Some(dir)) => {
+            app.status = format!("{} {}", i18n::t("Scanning"), dir.display());
+            return work::scan_task(dir);
+        }
+        Message::FolderPicked(None) => app.status = i18n::t("No folder chosen."),
         Message::OpenCoverPicker(job) => {
             let start = app.jobs.get(job).map(|j| j.unit.path.clone());
-            app.picker = Some(picker::Picker::new(picker::PickMode::Image, Some(job), start.as_deref()));
+            app.status = i18n::t("Choose a cover image in the system dialog…");
+            return work::pick_image_task(job, start);
         }
-        Message::Picker(m) => {
-            let mut result: Option<(picker::PickMode, Option<usize>, Option<PathBuf>)> = None;
-            if let Some(p) = app.picker.as_mut() {
-                if let Some(done) = p.update(m) {
-                    result = Some((p.mode, p.job, done));
-                }
-            }
-            if let Some((mode, job, chosen)) = result {
-                app.picker = None;
-                match (mode, chosen) {
-                    (picker::PickMode::Folder, Some(dir)) => {
-                        app.status = format!("{} {}", i18n::t("Scanning"), dir.display());
-                        return work::scan_task(dir);
-                    }
-                    (picker::PickMode::Image, Some(file)) => {
-                        if let Some(j) = job.and_then(|i| app.jobs.get_mut(i)) {
-                            j.cover_override = Some(CoverSource::File { path: file });
-                            j.cover_off.clear();
-                            j.rebuild(&app.cfg);
-                        }
-                    }
-                    _ => {}
-                }
+        Message::CoverPicked(job, Some(file)) => {
+            if let Some(j) = app.jobs.get_mut(job) {
+                j.cover_override = Some(CoverSource::File { path: file });
+                j.cover_off.clear();
+                j.rebuild(&app.cfg);
+                app.status = i18n::t("Cover set.");
             }
         }
+        Message::CoverPicked(_, None) => app.status = i18n::t("No image chosen."),
         Message::OpenUrl(url) => open_url(&url),
         Message::EditNew(file, field, value) => {
             if let Some(j) = app.selected.and_then(|s| app.jobs.get_mut(s)) {
@@ -603,11 +593,10 @@ pub fn open_url(url: &str) {
 }
 
 fn view(app: &App) -> Element<'_, Message> {
-    let base: Element<'_, Message> = if let Some(s) = &app.settings { settings::view(s, app).map(Message::Settings) } else { view::main(app) };
-    match &app.picker {
-        Some(p) => picker::overlay(base, p.view().map(Message::Picker), Message::Picker(picker::PickerMessage::Cancel)),
-        None => base,
+    if let Some(s) = &app.settings {
+        return settings::view(s, app).map(Message::Settings);
     }
+    view::main(app)
 }
 
 fn main() -> iced::Result {

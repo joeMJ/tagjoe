@@ -10,100 +10,100 @@ msgstr ""
 msgid "files"
 msgstr ""
 
-#: crates/tagjoe-gui/src/main.rs:150
+#: crates/tagjoe-core/src/sources/books.rs:150
+msgid "read by"
+msgstr ""
+
+#: crates/tagjoe-core/src/sources/books.rs:151
+msgid "chapters"
+msgstr ""
+
+#: crates/tagjoe-gui/src/main.rs:149
 msgid "Drop a folder onto the window or enter a path."
 msgstr ""
 
-#: crates/tagjoe-gui/src/main.rs:274 crates/tagjoe-gui/src/main.rs:282 crates/tagjoe-gui/src/main.rs:442
+#: crates/tagjoe-gui/src/main.rs:273 crates/tagjoe-gui/src/main.rs:281 crates/tagjoe-gui/src/main.rs:428
 msgid "Scanning"
 msgstr ""
 
-#: crates/tagjoe-gui/src/main.rs:277 crates/tagjoe-gui/src/picker.rs:108
+#: crates/tagjoe-gui/src/main.rs:276
 msgid "Not a folder."
 msgstr ""
 
-#: crates/tagjoe-gui/src/main.rs:288
+#: crates/tagjoe-gui/src/main.rs:287
 msgid "Already in the queue"
 msgstr ""
 
-#: crates/tagjoe-gui/src/main.rs:293
+#: crates/tagjoe-gui/src/main.rs:292
 msgid "starting"
 msgstr ""
 
-#: crates/tagjoe-gui/src/main.rs:299
+#: crates/tagjoe-gui/src/main.rs:298
 msgid "Added"
 msgstr ""
 
-#: crates/tagjoe-gui/src/main.rs:490
+#: crates/tagjoe-gui/src/main.rs:424
+msgid "Choose a folder in the system dialog…"
+msgstr ""
+
+#: crates/tagjoe-gui/src/main.rs:431
+msgid "No folder chosen."
+msgstr ""
+
+#: crates/tagjoe-gui/src/main.rs:434
+msgid "Choose a cover image in the system dialog…"
+msgstr ""
+
+#: crates/tagjoe-gui/src/main.rs:442
+msgid "Cover set."
+msgstr ""
+
+#: crates/tagjoe-gui/src/main.rs:445
+msgid "No image chosen."
+msgstr ""
+
+#: crates/tagjoe-gui/src/main.rs:480
 msgid "Cover: enter an image file path or an http(s) URL."
 msgstr ""
 
-#: crates/tagjoe-gui/src/main.rs:502 crates/tagjoe-gui/src/view.rs:210
+#: crates/tagjoe-gui/src/main.rs:492 crates/tagjoe-gui/src/view.rs:210
 msgid "Cover"
 msgstr ""
 
-#: crates/tagjoe-gui/src/main.rs:535
+#: crates/tagjoe-gui/src/main.rs:525
 msgid "Written:"
 msgstr ""
 
-#: crates/tagjoe-gui/src/main.rs:535
+#: crates/tagjoe-gui/src/main.rs:525
 msgid "error(s)"
 msgstr ""
 
-#: crates/tagjoe-gui/src/main.rs:535 crates/tagjoe-gui/src/main.rs:549
+#: crates/tagjoe-gui/src/main.rs:525 crates/tagjoe-gui/src/main.rs:539
 msgid "file(s)"
 msgstr ""
 
-#: crates/tagjoe-gui/src/main.rs:542
+#: crates/tagjoe-gui/src/main.rs:532
 msgid "Undoing the last run…"
 msgstr ""
 
-#: crates/tagjoe-gui/src/main.rs:549
+#: crates/tagjoe-gui/src/main.rs:539
 msgid "Undone:"
 msgstr ""
 
-#: crates/tagjoe-gui/src/main.rs:550
+#: crates/tagjoe-gui/src/main.rs:540
 msgid "Undo failed"
 msgstr ""
 
-#: crates/tagjoe-gui/src/main.rs:571
+#: crates/tagjoe-gui/src/main.rs:561
 msgid "Settings saved."
 msgstr ""
 
-#: crates/tagjoe-gui/src/main.rs:572
+#: crates/tagjoe-gui/src/main.rs:562
 msgid "Cannot save settings"
 msgstr ""
 
-#: crates/tagjoe-gui/src/main.rs:615 crates/tagjoe-gui/src/view.rs:71
+#: crates/tagjoe-gui/src/main.rs:604 crates/tagjoe-gui/src/view.rs:71
 msgid "tagjoe"
-msgstr ""
-
-#: crates/tagjoe-gui/src/picker.rs:120
-msgid "Choose a folder"
-msgstr ""
-
-#: crates/tagjoe-gui/src/picker.rs:121
-msgid "Choose a cover image"
-msgstr ""
-
-#: crates/tagjoe-gui/src/picker.rs:124
-msgid "Up"
-msgstr ""
-
-#: crates/tagjoe-gui/src/picker.rs:125
-msgid "Home"
-msgstr ""
-
-#: crates/tagjoe-gui/src/picker.rs:139
-msgid "audio files"
-msgstr ""
-
-#: crates/tagjoe-gui/src/picker.rs:140 crates/tagjoe-gui/src/settings.rs:298
-msgid "Cancel"
-msgstr ""
-
-#: crates/tagjoe-gui/src/picker.rs:142
-msgid "Use this folder"
 msgstr ""
 
 #: crates/tagjoe-gui/src/settings.rs:197
@@ -348,6 +348,10 @@ msgstr ""
 
 #: crates/tagjoe-gui/src/settings.rs:295
 msgid "Music data: MusicBrainz, AcoustID, Cover Art Archive, Discogs. Audiobook data: AudiobookDB and Audnexus."
+msgstr ""
+
+#: crates/tagjoe-gui/src/settings.rs:298
+msgid "Cancel"
 msgstr ""
 
 #: crates/tagjoe-gui/src/settings.rs:298

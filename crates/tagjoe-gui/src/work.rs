@@ -128,3 +128,32 @@ pub fn fetch_url_task(job: usize, url: String, cfg: Arc<Config>) -> Task<Message
 pub fn last_journal() -> Option<String> {
     Journal::list(&journal_dir()).into_iter().next().and_then(|p| p.file_name().map(|n| n.to_string_lossy().to_string()))
 }
+
+/// Native folder dialog (XDG portal on Linux → the desktop's own file chooser, SMB shares
+/// included; native dialogs on Windows and macOS).
+pub fn pick_folder_task(start: Option<PathBuf>) -> Task<Message> {
+    Task::perform(
+        async move {
+            let mut d = rfd::AsyncFileDialog::new().set_title("tagjoe – choose a folder");
+            if let Some(s) = start.filter(|p| p.is_dir()) {
+                d = d.set_directory(s);
+            }
+            d.pick_folder().await.map(|h| h.path().to_path_buf())
+        },
+        Message::FolderPicked,
+    )
+}
+
+/// Native file dialog for a cover image.
+pub fn pick_image_task(job: usize, start: Option<PathBuf>) -> Task<Message> {
+    Task::perform(
+        async move {
+            let mut d = rfd::AsyncFileDialog::new().set_title("tagjoe – choose a cover image").add_filter("Images", &["jpg", "jpeg", "png"]);
+            if let Some(s) = start.filter(|p| p.is_dir()) {
+                d = d.set_directory(s);
+            }
+            d.pick_file().await.map(|h| h.path().to_path_buf())
+        },
+        move |p| Message::CoverPicked(job, p),
+    )
+}
