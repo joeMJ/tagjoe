@@ -317,7 +317,9 @@ fn cmd_apply(plans: Vec<Plan>, cfg: &Config, yes: bool, clean: bool) -> Result<(
         return Ok(());
     }
     let n_files: usize = todo.iter().map(|p| p.files.iter().filter(|f| !f.is_noop()).count()).sum();
-    if !yes && !confirm(&format!("Write {n_files} file(s) in {} folder(s)?", todo.len())) {
+    let n_del: usize = todo.iter().map(|p| p.deletions()).sum();
+    let del = if n_del > 0 { format!(" and delete {n_del} folder file(s)") } else { String::new() };
+    if !yes && !confirm(&format!("Write {n_files} file(s) in {} folder(s){del}?", todo.len())) {
         outln!("cancelled");
         return Ok(());
     }
@@ -390,6 +392,9 @@ fn print_plan(p: &Plan, clean_only: bool) {
         for c in &f.remove_containers {
             outln!("      REMOVE container {c}");
         }
+    }
+    for d in p.delete_files.iter().filter(|d| d.apply) {
+        outln!("   DELETE  {}", d.path.strip_prefix(&p.unit).unwrap_or(&d.path).display());
     }
 }
 

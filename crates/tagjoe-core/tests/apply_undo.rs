@@ -31,6 +31,7 @@ fn apply_then_undo_roundtrip() {
     let jdir = unit_path.parent().unwrap().join("journal");
     let mut cfg = Config::default();
     cfg.templates.folder_enabled = true;
+    cfg.clean.enabled = false; // the folder clean-up has its own test
 
     let units = scan::scan_path(&unit_path).unwrap();
     let u = &units[0];

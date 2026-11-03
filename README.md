@@ -10,6 +10,8 @@ and proposes tags, an embedded cover and file names. Nothing is written until yo
 
 - Formats: MP3 (ID3v2/ID3v1/APE), FLAC, Ogg Vorbis, Opus, MP4/M4A/M4B, AAC, WAV, AIFF, APE, WavPack, Musepack
 - Foreign fields (comments, encoder junk, shop URLs, …) are listed and removed; a keep list protects what you want
+- Folder clean-up: NFO, M3U, image, TXT and further files are deleted after a clean run (each one shown first, optional)
+- Progress and an activity log (`log.txt`) in the window; a queue entry can drop out once written
 - Manual completion of any field and of the cover (file or URL) when no source has the data
 - File and folder name templates with placeholders, functions and conditions, live preview
 - Command line (`tagjoe scan | propose | apply | clean | undo | identify`) and desktop app (`tagjoe-gui`)

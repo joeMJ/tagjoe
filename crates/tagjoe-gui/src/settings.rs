@@ -3,7 +3,7 @@
 use crate::i18n::t;
 use crate::theme as th;
 use crate::App;
-use iced::widget::{button, column, container, radio, row, scrollable, space, text, text_input, toggler};
+use iced::widget::{button, checkbox, column, container, radio, row, scrollable, space, text, text_input, toggler};
 use iced::{Element, Fill, Length};
 use tagjoe_core::config::{Config, DiscMode};
 use tagjoe_core::model::{Field, Kind};
@@ -25,6 +25,7 @@ pub struct SettingsState {
     pub page: Page,
     pub keep_text: String,
     pub regions_text: String,
+    pub extra_text: String,
 }
 
 #[derive(Debug, Clone)]
@@ -50,6 +51,14 @@ pub enum SettingsMessage {
     Id3Version(String),
     CoverMax(String),
     CoverMin(String),
+    CoverBest(bool),
+    CleanEnabled(bool),
+    CleanNfo(bool),
+    CleanM3u(bool),
+    CleanImages(bool),
+    CleanTxt(bool),
+    CleanExtra(String),
+    RemoveDone(bool),
     ChapterTitle(String),
     Regions(String),
     BookLanguage(String),
@@ -71,7 +80,8 @@ impl SettingsState {
     pub fn new(cfg: Config) -> Self {
         let keep_text = cfg.tags.keep_fields.join("\n");
         let regions_text = cfg.audiobook.audnexus_regions.join(", ");
-        Self { cfg, page: Page::Templates, keep_text, regions_text }
+        let extra_text = cfg.clean.extra.join(", ");
+        Self { cfg, page: Page::Templates, keep_text, regions_text, extra_text }
     }
 
     pub fn update(&mut self, m: SettingsMessage) -> Outcome {
@@ -120,6 +130,17 @@ impl SettingsState {
                     self.cfg.tags.cover_min_px = n;
                 }
             }
+            M::CoverBest(b) => self.cfg.tags.cover_best = b,
+            M::CleanEnabled(b) => self.cfg.clean.enabled = b,
+            M::CleanNfo(b) => self.cfg.clean.nfo = b,
+            M::CleanM3u(b) => self.cfg.clean.m3u = b,
+            M::CleanImages(b) => self.cfg.clean.images = b,
+            M::CleanTxt(b) => self.cfg.clean.txt = b,
+            M::CleanExtra(s) => {
+                self.cfg.clean.extra = s.split([',', ' ', ';']).map(|x| x.trim().trim_start_matches('.').to_lowercase()).filter(|x| !x.is_empty()).collect();
+                self.extra_text = s;
+            }
+            M::RemoveDone(b) => self.cfg.remove_done_from_queue = b,
             M::ChapterTitle(s) => self.cfg.audiobook.chapter_title = s,
             M::Regions(s) => {
                 self.cfg.audiobook.audnexus_regions = s.split(',').map(|x| x.trim().to_lowercase()).filter(|x| !x.is_empty()).collect();
@@ -268,6 +289,17 @@ pub fn view<'a>(s: &'a SettingsState, app: &'a App) -> Element<'a, SettingsMessa
                 text_input(&t("one pattern per line"), &s.keep_text).on_input(SettingsMessage::KeepText).font(iced::Font::MONOSPACE).size(13).padding(6),
             ].spacing(6).into()),
             card(t("SECONDARY CONTAINERS"), toggler(cfg.tags.remove_secondary_containers).label(t("Remove ID3v1 and APE containers from MP3 files (ID3v2 stays)")).on_toggle(SettingsMessage::RemoveSecondary).text_size(13).into()),
+            card(t("FOLDER FILES"), column![
+                toggler(cfg.clean.enabled).label(t("Apply and Clean delete these files from the folder (after every audio file was written without error; the folder cover is embedded first; deleted for good)")).on_toggle(SettingsMessage::CleanEnabled).text_size(13),
+                row![
+                    checkbox(cfg.clean.nfo).label("NFO").on_toggle_maybe(cfg.clean.enabled.then_some(SettingsMessage::CleanNfo)).size(16).text_size(13),
+                    checkbox(cfg.clean.m3u).label("M3U, M3U8").on_toggle_maybe(cfg.clean.enabled.then_some(SettingsMessage::CleanM3u)).size(16).text_size(13),
+                    checkbox(cfg.clean.images).label(t("Images (JPG, JPEG, PNG)")).on_toggle_maybe(cfg.clean.enabled.then_some(SettingsMessage::CleanImages)).size(16).text_size(13),
+                    checkbox(cfg.clean.txt).label("TXT").on_toggle_maybe(cfg.clean.enabled.then_some(SettingsMessage::CleanTxt)).size(16).text_size(13),
+                ].spacing(16).wrap(),
+                field(&t("Further extensions (comma-separated)"), &s.extra_text, SettingsMessage::CleanExtra),
+                text(t("Every file on the list is shown in the files table before writing; untick single files there to keep them.")).size(12).style(th::dim),
+            ].spacing(8).into()),
         ].spacing(10).into(),
         Page::Tags => column![
             card(t("ID3"), column![
@@ -275,8 +307,9 @@ pub fn view<'a>(s: &'a SettingsState, app: &'a App) -> Element<'a, SettingsMessa
                 radio(t("ID3v2.3 (older Windows software)"), "2.3", Some(cfg.tags.id3_version.as_str()), |v: &str| SettingsMessage::Id3Version(v.to_string())).size(16).text_size(13),
             ].spacing(6).into()),
             card(t("COVER"), column![
+                toggler(cfg.tags.cover_best).label(t("Always check the cover and embed the best one (files without a cover get it; an existing cover is replaced when the found one is larger)")).on_toggle(SettingsMessage::CoverBest).text_size(13),
                 field(&t("Scale embedded covers down to (px)"), &cfg.tags.cover_max_px.to_string(), SettingsMessage::CoverMax),
-                field(&t("Replace existing covers smaller than (px)"), &cfg.tags.cover_min_px.to_string(), SettingsMessage::CoverMin),
+                field(&t("Otherwise: replace existing covers smaller than (px)"), &cfg.tags.cover_min_px.to_string(), SettingsMessage::CoverMin),
             ].spacing(6).into()),
         ].spacing(10).into(),
         Page::Audiobook => column![
@@ -291,6 +324,7 @@ pub fn view<'a>(s: &'a SettingsState, app: &'a App) -> Element<'a, SettingsMessa
         ].spacing(10).into(),
         Page::General => column![
             card(t("LANGUAGE"), column![field(&t("UI language (empty = system)"), &cfg.language, SettingsMessage::Language), text(t("Base language is English; German is available.")).size(12).style(th::dim)].spacing(6).into()),
+            card(t("QUEUE"), toggler(cfg.remove_done_from_queue).label(t("Remove a folder from the queue once it was written without errors")).on_toggle(SettingsMessage::RemoveDone).text_size(13).into()),
             card(t("CONFIGURATION FILE"), text(tagjoe_core::config::config_path().display().to_string()).size(12).font(iced::Font::MONOSPACE).into()),
             card(t("CREDITS"), column![text(t("Music data: MusicBrainz, AcoustID, Cover Art Archive, Discogs. Audiobook data: AudiobookDB and Audnexus.")).size(12).style(th::dim), row![link("https://musicbrainz.org"), link("https://acoustid.org"), link("https://coverartarchive.org"), link("https://www.discogs.com"), link("https://audiobookdb.org"), link("https://github.com/laxamentumtech/audnexus")].spacing(12).wrap()].spacing(4).into()),
         ].spacing(10).into(),

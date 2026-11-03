@@ -74,11 +74,63 @@ pub struct TagOptions {
     /// Remove secondary containers (ID3v1, APE in MP3).
     pub remove_secondary_containers: bool,
     /// Replace an embedded cover that is smaller than this (px) when a better one is available.
+    /// Only used when `cover_best` is off.
     pub cover_min_px: u32,
+    /// Always check the cover and embed the best one: files without a cover get it, an existing
+    /// cover is replaced when the found one is larger.
+    pub cover_best: bool,
 }
 impl Default for TagOptions {
     fn default() -> Self {
-        Self { id3_version: "2.4".into(), cover_max_px: 1200, keep_fields: vec![], remove_secondary_containers: true, cover_min_px: 500 }
+        Self { id3_version: "2.4".into(), cover_max_px: 1200, keep_fields: vec![], remove_secondary_containers: true, cover_min_px: 500, cover_best: true }
+    }
+}
+
+/// Files removed from the folder by Apply and Clean (after every audio file was written without error).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct FolderClean {
+    pub enabled: bool,
+    pub nfo: bool,
+    /// .m3u and .m3u8
+    pub m3u: bool,
+    /// .jpg, .jpeg, .png (the folder cover is embedded first)
+    pub images: bool,
+    pub txt: bool,
+    /// Further extensions without the dot.
+    pub extra: Vec<String>,
+}
+impl Default for FolderClean {
+    fn default() -> Self {
+        Self { enabled: true, nfo: true, m3u: true, images: true, txt: true, extra: ["cue", "sfv", "log", "url", "db", "ini"].iter().map(|s| s.to_string()).collect() }
+    }
+}
+impl FolderClean {
+    /// Lower-case extensions to remove, or empty when the clean-up is off.
+    pub fn extensions(&self) -> Vec<String> {
+        if !self.enabled {
+            return vec![];
+        }
+        let mut v: Vec<String> = Vec::new();
+        if self.nfo {
+            v.push("nfo".into());
+        }
+        if self.m3u {
+            v.extend(["m3u".to_string(), "m3u8".to_string()]);
+        }
+        if self.images {
+            v.extend(["jpg".to_string(), "jpeg".to_string(), "png".to_string()]);
+        }
+        if self.txt {
+            v.push("txt".into());
+        }
+        for e in &self.extra {
+            let e = e.trim().trim_start_matches('.').to_ascii_lowercase();
+            if !e.is_empty() && !v.contains(&e) {
+                v.push(e);
+            }
+        }
+        v
     }
 }
 
@@ -133,8 +185,11 @@ pub struct Config {
     pub numbering: Numbering,
     pub tags: TagOptions,
     pub sources: Sources,
+    pub clean: FolderClean,
     /// Language for the UI ("" = system).
     pub language: String,
+    /// GUI: drop a folder from the queue once it was written without errors.
+    pub remove_done_from_queue: bool,
 }
 
 pub fn config_dir() -> PathBuf {

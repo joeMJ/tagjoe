@@ -5,7 +5,7 @@ use iced::futures::channel::mpsc;
 use iced::Task;
 use std::path::PathBuf;
 use std::sync::Arc;
-use tagjoe_core::apply::{apply, undo, ApplyResult};
+use tagjoe_core::apply::{apply_with_progress, undo, ApplyResult};
 use tagjoe_core::config::{journal_dir, Config};
 use tagjoe_core::journal::Journal;
 use tagjoe_core::model::{Kind, Unit};
@@ -71,18 +71,17 @@ pub fn identify_task(job: usize, unit: Arc<Unit>, cfg: Arc<Config>, offline: boo
     Task::run(rx, |m| m)
 }
 
+/// Apply a plan on a thread; one `ApplyProgress` per written or deleted file, then `Applied`.
 pub fn apply_task(job: usize, plan: Plan, cfg: Arc<Config>) -> Task<Message> {
-    Task::perform(
-        async move {
-            let (tx, rx) = iced::futures::channel::oneshot::channel::<ApplyResult>();
-            std::thread::spawn(move || {
-                let r = apply(&plan, &cfg, &journal_dir());
-                let _ = tx.send(r);
-            });
-            rx.await.unwrap_or_default()
-        },
-        move |r| Message::Applied(job, r),
-    )
+    let (tx, rx) = mpsc::unbounded::<Message>();
+    std::thread::spawn(move || {
+        let ptx = tx.clone();
+        let r = apply_with_progress(&plan, &cfg, &journal_dir(), &mut |p| {
+            let _ = ptx.unbounded_send(Message::ApplyProgress(job, p.clone()));
+        });
+        let _ = tx.unbounded_send(Message::Applied(job, r));
+    });
+    Task::run(rx, |m| m)
 }
 
 pub fn undo_task(cfg: Arc<Config>) -> Task<Message> {

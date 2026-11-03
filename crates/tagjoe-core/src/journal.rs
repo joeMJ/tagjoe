@@ -24,11 +24,47 @@ pub struct Journal {
     pub unit: PathBuf,
     pub new_folder: Option<PathBuf>,
     pub entries: Vec<JournalEntry>,
+    /// Folder files removed by the clean-up (deleted for good; listed for the log, not restorable).
+    #[serde(default)]
+    pub deleted: Vec<PathBuf>,
 }
 
 /// Civil date-time from the system clock, as `YYYY-MM-DDTHH-MM-SS` (file-name safe).
 pub fn timestamp() -> String {
+    civil_now('T', '-')
+}
+
+/// Civil date-time for humans in local time, `YYYY-MM-DD HH:MM:SS`.
+pub fn now_human() -> String {
     let secs = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0) as i64;
+    civil(secs + local_offset_secs(), ' ', ':')
+}
+
+/// Offset of the local time zone in seconds (asked once from `date +%z` on Unix; 0 elsewhere).
+fn local_offset_secs() -> i64 {
+    static OFFSET: std::sync::OnceLock<i64> = std::sync::OnceLock::new();
+    *OFFSET.get_or_init(|| {
+        if cfg!(unix) {
+            let out = std::process::Command::new("date").arg("+%z").output().ok();
+            let s = out.map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string()).unwrap_or_default();
+            // +0100 / -0530
+            if s.len() == 5 {
+                let sign = if s.starts_with('-') { -1 } else { 1 };
+                let h: i64 = s[1..3].parse().unwrap_or(0);
+                let m: i64 = s[3..5].parse().unwrap_or(0);
+                return sign * (h * 3600 + m * 60);
+            }
+        }
+        0
+    })
+}
+
+fn civil_now(sep: char, time_sep: char) -> String {
+    let secs = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0) as i64;
+    civil(secs, sep, time_sep)
+}
+
+fn civil(secs: i64, sep: char, time_sep: char) -> String {
     let days = secs.div_euclid(86400);
     let rem = secs.rem_euclid(86400);
     let (h, m, s) = (rem / 3600, (rem % 3600) / 60, rem % 60);
@@ -43,7 +79,7 @@ pub fn timestamp() -> String {
     let d = doy - (153 * mp + 2) / 5 + 1;
     let mo = if mp < 10 { mp + 3 } else { mp - 9 };
     let y = if mo <= 2 { y + 1 } else { y };
-    format!("{y:04}-{mo:02}-{d:02}T{h:02}-{m:02}-{s:02}")
+    format!("{y:04}-{mo:02}-{d:02}{sep}{h:02}{time_sep}{m:02}{time_sep}{s:02}")
 }
 
 impl Journal {

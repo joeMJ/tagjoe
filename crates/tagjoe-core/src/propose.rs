@@ -90,6 +90,13 @@ impl FilePlan {
     }
 }
 
+/// A non-audio file in the folder that the clean-up removes (NFO, M3U, images, TXT, …).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct DeletePlan {
+    pub path: PathBuf,
+    pub apply: bool,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Plan {
     pub unit: PathBuf,
@@ -99,12 +106,53 @@ pub struct Plan {
     /// New folder path if folder renaming is on and the name differs.
     pub new_folder: Option<PathBuf>,
     pub notes: Vec<String>,
+    /// Folder files to delete once every audio file was written without error.
+    #[serde(default)]
+    pub delete_files: Vec<DeletePlan>,
 }
 
 impl Plan {
     pub fn is_noop(&self) -> bool {
-        self.new_folder.is_none() && self.files.iter().all(FilePlan::is_noop)
+        self.new_folder.is_none() && self.files.iter().all(FilePlan::is_noop) && !self.delete_files.iter().any(|d| d.apply)
     }
+    /// Deletions the user left switched on.
+    pub fn deletions(&self) -> usize {
+        self.delete_files.iter().filter(|d| d.apply).count()
+    }
+}
+
+/// Non-audio files in the unit folder (and its disc subfolders) whose extension is on the
+/// clean-up list. Hidden files are skipped. Sorted.
+pub fn cleanup_candidates(unit: &Unit, cfg: &Config) -> Vec<PathBuf> {
+    let exts = cfg.clean.extensions();
+    if exts.is_empty() {
+        return vec![];
+    }
+    let mut dirs: Vec<PathBuf> = vec![unit.path.clone()];
+    for f in &unit.files {
+        if let Some(d) = f.path.parent() {
+            if !dirs.iter().any(|x| x == d) {
+                dirs.push(d.to_path_buf());
+            }
+        }
+    }
+    let mut out = Vec::new();
+    for d in dirs {
+        let Ok(rd) = std::fs::read_dir(&d) else { continue };
+        for e in rd.flatten() {
+            let p = e.path();
+            let name = e.file_name().to_string_lossy().to_string();
+            if name.starts_with('.') || !p.is_file() || crate::scan::is_audio(&p) {
+                continue;
+            }
+            let ext = p.extension().map(|x| x.to_string_lossy().to_ascii_lowercase()).unwrap_or_default();
+            if exts.contains(&ext) {
+                out.push(p);
+            }
+        }
+    }
+    out.sort();
+    out
 }
 
 /// Parse "3" or "3/12" into (number, total).
@@ -409,7 +457,12 @@ pub fn build_plan(unit: &Unit, release: &ReleaseInfo, matched: &[Option<usize>],
             match (&release.cover, cover_dims) {
                 (Some(src), Some((w, h, bytes))) => {
                     let replaces = existing.is_some();
-                    let better = existing.map(|e| e < cfg.tags.cover_min_px && w.max(h) > e).unwrap_or(true);
+                    let better = if cfg.tags.cover_best {
+                        // no cover → embed; existing → only when the found one is larger
+                        existing.map(|e| w.max(h) > e).unwrap_or(true)
+                    } else {
+                        existing.map(|e| e < cfg.tags.cover_min_px && w.max(h) > e).unwrap_or(true)
+                    };
                     Some(CoverChange { source: src.clone(), width: w, height: h, bytes, replaces_existing: replaces, apply: better })
                 }
                 _ => None,
@@ -464,7 +517,8 @@ pub fn build_plan(unit: &Unit, release: &ReleaseInfo, matched: &[Option<usize>],
         }
     }
 
-    Plan { unit: unit.path.clone(), kind, source: release.source.clone(), files, new_folder, notes }
+    let delete_files = cleanup_candidates(unit, cfg).into_iter().map(|p| DeletePlan { path: p, apply: true }).collect();
+    Plan { unit: unit.path.clone(), kind, source: release.source.clone(), files, new_folder, notes, delete_files }
 }
 
 /// Normalize values for comparison and writing (numbers without leading zeros, flags as 1/0).
@@ -553,6 +607,31 @@ mod tests {
         assert!(plan.files[0].changes.iter().any(|c| c.field == Field::Label && c.status == Status::Missing));
     }
 
+    #[test]
+    fn cover_best_rule() {
+        use crate::model::PictureInfo;
+        let bytes = std::fs::read(concat!(env!("CARGO_MANIFEST_DIR"), "/../../tests/fixtures/cover.jpg")).unwrap(); // 64×64
+        let mut small = file("01.mp3", &[(Field::Title, "A")]);
+        small.pictures.push(PictureInfo { pic_type: "CoverFront".into(), mime: "image/jpeg".into(), width: 32, height: 32, bytes: 10 });
+        let mut big = file("02.mp3", &[(Field::Title, "B")]);
+        big.pictures.push(PictureInfo { pic_type: "CoverFront".into(), mime: "image/jpeg".into(), width: 100, height: 100, bytes: 10 });
+        let none = file("03.mp3", &[(Field::Title, "C")]);
+        let unit = Unit { path: PathBuf::from("/x"), kind: Kind::Album, files: vec![small, big, none], cover_files: vec![], disc_folders: false, warnings: vec![] };
+        let mut rel = release_from_unit(&unit);
+        rel.cover = Some(CoverSource::Bytes { bytes, mime: "image/jpeg".into() });
+        let mut cfg = Config::default();
+        let applies = |cfg: &Config| -> Vec<bool> {
+            let p = build_plan(&unit, &rel, &identity_match(3), cfg);
+            p.files.iter().map(|f| f.cover.as_ref().map(|c| c.apply).unwrap_or(false)).collect()
+        };
+        assert!(cfg.tags.cover_best);
+        assert_eq!(applies(&cfg), [true, false, true], "best: replace smaller, keep larger, add missing");
+        cfg.tags.cover_best = false;
+        cfg.tags.cover_min_px = 500;
+        assert_eq!(applies(&cfg), [true, false, true], "threshold rule: 100 px is below 500 but 64 is not larger");
+        cfg.tags.cover_min_px = 20;
+        assert_eq!(applies(&cfg), [false, false, true], "threshold rule: 32 px is above 20, kept");
+    }
     #[test]
     fn title_from_names() {
         assert_eq!(title_from_file_name("01-kloyd_and_fractures_will_we_ever_learn_(mixed).mp3"), "kloyd and fractures will we ever learn (mixed)");

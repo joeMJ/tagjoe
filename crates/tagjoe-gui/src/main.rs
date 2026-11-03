@@ -13,7 +13,7 @@ use iced::{event, window, Element, Subscription, Task, Theme};
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::sync::Arc;
-use tagjoe_core::apply::ApplyResult;
+use tagjoe_core::apply::{ApplyResult, Progress};
 use tagjoe_core::config::Config;
 use tagjoe_core::model::{Field, Kind, Unit};
 use tagjoe_core::propose::{self, CoverSource, Plan, ReleaseInfo};
@@ -53,6 +53,34 @@ pub struct Job {
     pub skipped_removals: BTreeSet<(usize, usize)>,
     /// Files whose cover embedding is switched off.
     pub cover_off: BTreeSet<usize>,
+    /// Header switch: embed the cover into every file (per-file boxes below are exceptions).
+    pub cover_all: bool,
+    /// Folder files (index into `plan.delete_files`) the user keeps.
+    pub delete_off: BTreeSet<usize>,
+    /// Progress of the running apply: (done, total, current file).
+    pub progress: Option<(usize, usize, String)>,
+}
+
+/// One line of the activity log shown in the footer panel.
+#[derive(Debug, Clone)]
+pub struct LogLine {
+    pub time: String,
+    pub unit: String,
+    pub file: String,
+    pub action: String,
+    pub ok: bool,
+}
+
+impl LogLine {
+    fn parse(line: &str) -> Option<LogLine> {
+        let mut it = line.splitn(4, '\t');
+        let time = it.next()?.to_string();
+        let unit = it.next()?.to_string();
+        let file = it.next()?.to_string();
+        let action = it.next().unwrap_or_default().to_string();
+        let ok = !(action.starts_with("error") || action.starts_with("Fehler"));
+        Some(LogLine { time, unit, file, action, ok })
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -72,6 +100,9 @@ pub struct App {
     pub offline: bool,
     pub last_journal: Option<String>,
     pub panes: pane_grid::State<Pane>,
+    /// Activity log, newest first (this session plus the tail of log.txt).
+    pub log: Vec<LogLine>,
+    pub log_open: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -100,7 +131,12 @@ pub enum Message {
     CoverFromFolder(usize),
     Apply(usize),
     CleanOnly(usize),
+    ApplyProgress(usize, Progress),
     Applied(usize, ApplyResult),
+    ToggleLog,
+    ClearLog,
+    ToggleCoverAll(usize, bool),
+    ToggleDelete(usize, usize, bool),
     Undo,
     Undoned,
     Undone(Result<(String, ApplyResult), String>),
@@ -146,7 +182,7 @@ fn boot() -> (App, Task<Message>) {
     let cfg = Config::load();
     tagjoe_core::i18n::init_from_env(&cfg.language);
     let panes = pane_grid::State::with_configuration(pane_grid::Configuration::Split { axis: pane_grid::Axis::Horizontal, ratio: 0.5, a: Box::new(pane_grid::Configuration::Pane(Pane::Files)), b: Box::new(pane_grid::Configuration::Pane(Pane::Fields)) });
-    let app = App { cfg: Arc::new(cfg), theme: if a.theme.as_deref() == Some("dark") { theme::dark() } else { theme::light() }, jobs: vec![], selected: None, path_input: String::new(), status: i18n::t("Drop a folder onto the window or enter a path."), settings: None, offline: a.offline, last_journal: work::last_journal(), panes };
+    let app = App { cfg: Arc::new(cfg), theme: if a.theme.as_deref() == Some("dark") { theme::dark() } else { theme::light() }, jobs: vec![], selected: None, path_input: String::new(), status: i18n::t("Drop a folder onto the window or enter a path."), settings: None, offline: a.offline, last_journal: work::last_journal(), panes, log: load_log(), log_open: false };
     let mut tasks = Vec::new();
     if a.theme.is_none() {
         tasks.push(iced::system::theme().map(Message::SystemTheme));
@@ -155,6 +191,26 @@ fn boot() -> (App, Task<Message>) {
         tasks.push(work::scan_task(f));
     }
     (app, Task::batch(tasks))
+}
+
+/// The tail of log.txt, newest first.
+fn load_log() -> Vec<LogLine> {
+    let mut v: Vec<LogLine> = tagjoe_core::log::tail(500).iter().filter_map(|l| LogLine::parse(l)).collect();
+    v.reverse();
+    v
+}
+
+impl App {
+    /// Record an action in the panel and in log.txt.
+    fn log(&mut self, unit: &str, file: &str, action: &str, ok: bool) {
+        let line = tagjoe_core::log::line(unit, file, action);
+        let _ = tagjoe_core::log::append(std::slice::from_ref(&line));
+        if let Some(mut l) = LogLine::parse(&line) {
+            l.ok = ok;
+            self.log.insert(0, l);
+            self.log.truncate(tagjoe_core::log::MAX_LINES);
+        }
+    }
 }
 
 fn subscription(_app: &App) -> Subscription<Message> {
@@ -177,7 +233,7 @@ fn cover_handle(src: &CoverSource) -> Option<image::Handle> {
 
 impl Job {
     fn new(unit: Arc<Unit>) -> Self {
-        Job { unit, state: JobState::Scanning, candidates: vec![], chosen: None, plan: None, selected_file: 0, album_overrides: BTreeMap::new(), file_overrides: BTreeMap::new(), cover_override: None, cover_handle: None, notes: vec![], cover_input: String::new(), result: None, rename_off: BTreeSet::new(), skipped: BTreeSet::new(), skipped_removals: BTreeSet::new(), cover_off: BTreeSet::new() }
+        Job { unit, state: JobState::Scanning, candidates: vec![], chosen: None, plan: None, selected_file: 0, album_overrides: BTreeMap::new(), file_overrides: BTreeMap::new(), cover_override: None, cover_handle: None, notes: vec![], cover_input: String::new(), result: None, rename_off: BTreeSet::new(), skipped: BTreeSet::new(), skipped_removals: BTreeSet::new(), cover_off: BTreeSet::new(), cover_all: true, delete_off: BTreeSet::new(), progress: None }
     }
 
     /// Reference data + matching for the current choice (candidate or tags/offline).
@@ -239,12 +295,44 @@ impl Job {
                 fp.new_name = None;
             }
             if let Some(c) = fp.cover.as_mut() {
-                if self.cover_off.contains(&i) {
+                if !self.cover_all || self.cover_off.contains(&i) {
                     c.apply = false;
                 }
             }
         }
+        for (i, d) in plan.delete_files.iter_mut().enumerate() {
+            if self.delete_off.contains(&i) {
+                d.apply = false;
+            }
+        }
         self.plan = Some(plan);
+    }
+
+    /// Where the proposed cover comes from and how large it is, for the header line.
+    pub fn cover_origin(&self) -> CoverOrigin {
+        let plan = self.plan.as_ref();
+        let change = plan.and_then(|p| p.files.iter().find_map(|f| f.cover.as_ref()));
+        let Some(c) = change else {
+            return if self.unit.files.iter().any(|f| f.has_cover()) { CoverOrigin::EmbeddedOnly } else { CoverOrigin::None };
+        };
+        let dims = (c.width, c.height);
+        match &c.source {
+            CoverSource::File { path } => {
+                let name = path.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+                if self.unit.cover_files.iter().any(|p| p == path) { CoverOrigin::Folder(name, dims) } else { CoverOrigin::Picked(name, dims) }
+            }
+            CoverSource::Bytes { .. } => {
+                let src = self.chosen.and_then(|i| self.candidates.get(i)).map(|c| c.release.source.clone()).unwrap_or_default();
+                if self.cover_override.is_some() {
+                    CoverOrigin::Url(dims)
+                } else if src.to_lowercase().contains("discogs") {
+                    CoverOrigin::Discogs(dims)
+                } else {
+                    CoverOrigin::CoverArtArchive(dims)
+                }
+            }
+            CoverSource::Url { .. } => CoverOrigin::Url(dims),
+        }
     }
 
     pub fn summary(&self) -> (usize, usize, usize, usize, usize) {
@@ -256,6 +344,19 @@ impl Job {
         let renames = p.files.iter().filter(|f| f.new_name.is_some()).count();
         (complete, incomplete, foreign, no_cover, renames)
     }
+}
+
+/// Origin of the proposed cover (header line of the release card).
+#[derive(Debug, Clone, PartialEq)]
+pub enum CoverOrigin {
+    None,
+    /// No new cover; some files carry one already.
+    EmbeddedOnly,
+    Folder(String, (u32, u32)),
+    Picked(String, (u32, u32)),
+    Url((u32, u32)),
+    CoverArtArchive((u32, u32)),
+    Discogs((u32, u32)),
 }
 
 fn update(app: &mut App, msg: Message) -> Task<Message> {
@@ -398,6 +499,46 @@ fn update(app: &mut App, msg: Message) -> Task<Message> {
                 }
             }
         }
+        Message::ToggleCoverAll(job, on) => {
+            if let Some(j) = app.jobs.get_mut(job) {
+                j.cover_all = on;
+                j.cover_off.clear();
+                j.rebuild(&app.cfg);
+            }
+        }
+        Message::ToggleDelete(job, idx, on) => {
+            if let Some(j) = app.jobs.get_mut(job) {
+                if on {
+                    j.delete_off.remove(&idx);
+                } else {
+                    j.delete_off.insert(idx);
+                }
+                if let Some(d) = j.plan.as_mut().and_then(|p| p.delete_files.get_mut(idx)) {
+                    d.apply = on;
+                }
+            }
+        }
+        Message::ToggleLog => app.log_open = !app.log_open,
+        Message::ClearLog => {
+            let _ = tagjoe_core::log::clear();
+            app.log.clear();
+        }
+        Message::ApplyProgress(job, p) => {
+            let unit = app.jobs.get(job).map(|j| j.unit.path.display().to_string()).unwrap_or_default();
+            let name = p.path.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+            let action = if !p.ok {
+                format!("{}: {}", i18n::t("error"), p.message)
+            } else if p.message == "deleted" {
+                i18n::t("deleted")
+            } else {
+                p.message.clone()
+            };
+            app.log(&unit, &name, &action, p.ok);
+            if let Some(j) = app.jobs.get_mut(job) {
+                j.progress = Some((p.done, p.total, name.clone()));
+            }
+            app.status = format!("{} {} {} {} · {name}", i18n::t("Writing"), p.done, i18n::t("of"), p.total);
+        }
         Message::ToggleRename(file, on) => {
             if let Some(j) = app.selected.and_then(|s| app.jobs.get_mut(s)) {
                 if on {
@@ -520,12 +661,34 @@ fn update(app: &mut App, msg: Message) -> Task<Message> {
         }
         Message::Applied(job, result) => {
             app.last_journal = work::last_journal();
+            let unit = app.jobs.get(job).map(|j| j.unit.path.display().to_string()).unwrap_or_default();
+            if let Some((from, to)) = &result.folder {
+                app.log(&unit, "", &format!("{} {} → {}", i18n::t("folder renamed"), from.display(), to.display()), true);
+            }
+            let written = result.files.iter().filter(|f| f.ok && f.message != "deleted").count();
+            let deleted = result.deleted.len();
+            let mut summary = format!("{} {written} {}", i18n::t("Written:"), i18n::t("file(s)"));
+            if deleted > 0 {
+                summary.push_str(&format!(", {deleted} {}", i18n::t("deleted")));
+            }
+            if result.errors > 0 {
+                summary.push_str(&format!(", {} {}", result.errors, i18n::t("error(s)")));
+            }
+            app.log(&unit, "", &format!("{} · {summary}", i18n::t("run finished")), result.errors == 0);
+            let remove = app.cfg.remove_done_from_queue && result.errors == 0;
             if let Some(j) = app.jobs.get_mut(job) {
-                let ok = result.files.iter().filter(|f| f.ok).count();
-                let msg = if result.errors == 0 { format!("{} {ok} {}", i18n::t("Written:"), i18n::t("file(s)")) } else { format!("{} {}", result.errors, i18n::t("error(s)")) };
-                j.state = if result.errors == 0 { JobState::Done(msg.clone()) } else { JobState::Failed(msg.clone()) };
+                j.progress = None;
+                j.state = if result.errors == 0 { JobState::Done(summary.clone()) } else { JobState::Failed(summary.clone()) };
                 j.result = Some(result);
-                app.status = msg;
+                app.status = summary;
+            }
+            if remove && job < app.jobs.len() {
+                app.jobs.remove(job);
+                app.selected = match app.selected {
+                    Some(s) if s == job => if app.jobs.is_empty() { None } else { Some(s.min(app.jobs.len() - 1)) },
+                    Some(s) if s > job => Some(s - 1),
+                    other => other,
+                };
             }
         }
         Message::Undo => {
@@ -536,8 +699,17 @@ fn update(app: &mut App, msg: Message) -> Task<Message> {
         Message::Undone(r) => {
             app.last_journal = work::last_journal();
             app.status = match r {
-                Ok((unit, res)) => format!("{} {unit} ({} {})", i18n::t("Undone:"), res.files.len(), i18n::t("file(s)")),
-                Err(e) => format!("{}: {e}", i18n::t("Undo failed")),
+                Ok((unit, res)) => {
+                    for f in &res.files {
+                        let name = f.path.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+                        app.log(&unit, &name, &if f.ok { format!("{} · {}", i18n::t("undone"), f.message) } else { format!("{}: {}", i18n::t("error"), f.message) }, f.ok);
+                    }
+                    format!("{} {unit} ({} {})", i18n::t("Undone:"), res.files.len(), i18n::t("file(s)"))
+                }
+                Err(e) => {
+                    app.log("", "", &format!("{}: {e}", i18n::t("Undo failed")), false);
+                    format!("{}: {e}", i18n::t("Undo failed"))
+                }
             };
         }
         Message::OpenSettings => {

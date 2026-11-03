@@ -34,6 +34,21 @@ pub struct ApplyResult {
     pub folder: Option<(PathBuf, PathBuf)>,
     pub journal: Option<PathBuf>,
     pub errors: usize,
+    /// Folder files removed by the clean-up.
+    #[serde(default)]
+    pub deleted: Vec<PathBuf>,
+}
+
+/// One step of an apply run, reported after each file (and each deletion).
+#[derive(Debug, Clone, PartialEq)]
+pub struct Progress {
+    /// Steps done so far (1-based after the first file).
+    pub done: usize,
+    /// Audio files to write plus files to delete.
+    pub total: usize,
+    pub path: PathBuf,
+    pub ok: bool,
+    pub message: String,
 }
 
 fn eq_name(a: &str, b: &str) -> bool {
@@ -407,23 +422,64 @@ fn apply_file(fp: &FilePlan, cfg: &Config, journal_dir: &Path, run_id: &str, ind
 
 /// Apply a plan. Writes a journal into `journal_dir` (unless nothing changed).
 pub fn apply(plan: &Plan, cfg: &Config, journal_dir: &Path) -> ApplyResult {
+    apply_with_progress(plan, cfg, journal_dir, &mut |_| {})
+}
+
+/// Like [`apply`], reporting every file through `progress` as soon as it is written.
+/// Folder files on the clean-up list are deleted only when every audio file was written
+/// without error; the deletions are reported too.
+pub fn apply_with_progress(plan: &Plan, cfg: &Config, journal_dir: &Path, progress: &mut dyn FnMut(&Progress)) -> ApplyResult {
     let run_id = crate::journal::timestamp();
-    let mut journal = Journal { created: run_id.clone(), unit: plan.unit.clone(), new_folder: None, entries: vec![] };
+    let mut journal = Journal { created: run_id.clone(), unit: plan.unit.clone(), new_folder: None, entries: vec![], deleted: vec![] };
     let mut result = ApplyResult::default();
+    let deletions: Vec<&PathBuf> = plan.delete_files.iter().filter(|d| d.apply).map(|d| &d.path).collect();
+    let total = plan.files.iter().filter(|f| f.apply && !f.is_noop()).count() + deletions.len();
+    let mut done = 0;
     for (i, fp) in plan.files.iter().enumerate() {
         if !fp.apply || fp.is_noop() {
             continue;
         }
+        done += 1;
         match apply_file(fp, cfg, journal_dir, &run_id, i) {
             Ok((entry, new_path, msg)) => {
                 journal.entries.push(entry);
+                progress(&Progress { done, total, path: fp.path.clone(), ok: true, message: msg.clone() });
                 result.files.push(FileResult { path: fp.path.clone(), new_path, ok: true, message: msg });
             }
             Err(e) => {
                 result.errors += 1;
+                progress(&Progress { done, total, path: fp.path.clone(), ok: false, message: e.clone() });
                 result.files.push(FileResult { path: fp.path.clone(), new_path: fp.path.clone(), ok: false, message: e });
             }
         }
+    }
+    // folder clean-up: only after a clean run, and only files inside the unit folder
+    if result.errors == 0 {
+        for p in deletions {
+            done += 1;
+            let r = if !p.starts_with(&plan.unit) {
+                Err("outside the folder".to_string())
+            } else if crate::scan::is_audio(p) {
+                Err("audio file".to_string())
+            } else {
+                std::fs::remove_file(p).map_err(|e| format!("delete: {e}"))
+            };
+            match r {
+                Ok(()) => {
+                    journal.deleted.push(p.clone());
+                    result.deleted.push(p.clone());
+                    progress(&Progress { done, total, path: p.clone(), ok: true, message: "deleted".into() });
+                    result.files.push(FileResult { path: p.clone(), new_path: p.clone(), ok: true, message: "deleted".into() });
+                }
+                Err(e) => {
+                    result.errors += 1;
+                    progress(&Progress { done, total, path: p.clone(), ok: false, message: e.clone() });
+                    result.files.push(FileResult { path: p.clone(), new_path: p.clone(), ok: false, message: e });
+                }
+            }
+        }
+    } else if !deletions.is_empty() {
+        result.files.push(FileResult { path: plan.unit.clone(), new_path: plan.unit.clone(), ok: true, message: format!("{} file(s) not deleted because of errors", deletions.len()) });
     }
     if let Some(nf) = &plan.new_folder {
         match (|| -> Result<(), String> {
@@ -443,7 +499,7 @@ pub fn apply(plan: &Plan, cfg: &Config, journal_dir: &Path) -> ApplyResult {
             }
         }
     }
-    if !journal.entries.is_empty() || journal.new_folder.is_some() {
+    if !journal.entries.is_empty() || journal.new_folder.is_some() || !journal.deleted.is_empty() {
         match journal.save(journal_dir) {
             Ok(p) => result.journal = Some(p),
             Err(e) => {
@@ -458,6 +514,9 @@ pub fn apply(plan: &Plan, cfg: &Config, journal_dir: &Path) -> ApplyResult {
 /// Undo a journal: restore names, fields, removed entries and covers (best effort).
 pub fn undo(journal: &Journal, cfg: &Config) -> ApplyResult {
     let mut result = ApplyResult::default();
+    if !journal.deleted.is_empty() {
+        result.files.push(FileResult { path: journal.unit.clone(), new_path: journal.unit.clone(), ok: true, message: format!("{} deleted folder file(s) cannot be restored", journal.deleted.len()) });
+    }
     // folder first (files live inside the renamed folder)
     let mut base_map: Option<(PathBuf, PathBuf)> = None;
     if let Some(nf) = &journal.new_folder {

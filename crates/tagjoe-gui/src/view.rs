@@ -2,8 +2,8 @@
 
 use crate::i18n::t;
 use crate::theme as th;
-use crate::{App, Job, JobState, Message, Pane};
-use iced::widget::{button, checkbox, column, container, image, pane_grid, row, rule, scrollable, space, text, text_input};
+use crate::{App, CoverOrigin, Job, JobState, Message, Pane};
+use iced::widget::{button, checkbox, column, container, image, pane_grid, progress_bar, row, rule, scrollable, space, text, text_input, toggler};
 use iced::{Element, Fill, FillPortion, Length, Theme};
 use tagjoe_core::model::{Field, Kind};
 use tagjoe_core::schema::Status;
@@ -147,7 +147,27 @@ fn release_card<'a>(job_idx: usize, job: &'a Job) -> Element<'a, Message> {
     ]
     .spacing(6);
 
-    let info = column![text(title).size(16), text(line1).size(13).style(th::dim), text(line2).size(12).style(th::dim), cands, cover_tools].spacing(4);
+    let (origin, origin_style): (String, fn(&Theme) -> text::Style) = match job.cover_origin() {
+        CoverOrigin::None => (t("no cover found – pick a file or paste a URL below"), th::err),
+        CoverOrigin::EmbeddedOnly => (t("embedded in the files already, nothing better found"), th::ok),
+        CoverOrigin::Folder(name, (w, h)) => (format!("{} {name}, {w}×{h}", t("folder file")), th::info),
+        CoverOrigin::Picked(name, (w, h)) => (format!("{} {name}, {w}×{h}", t("chosen file")), th::info),
+        CoverOrigin::Url((w, h)) => (format!("{}, {w}×{h}", t("web address")), th::info),
+        CoverOrigin::CoverArtArchive((w, h)) => (format!("Cover Art Archive, {w}×{h}"), th::info),
+        CoverOrigin::Discogs((w, h)) => (format!("Discogs, {w}×{h}"), th::info),
+    };
+    let has_cover_change = job.plan.as_ref().map(|p| p.files.iter().any(|f| f.cover.is_some())).unwrap_or(false);
+    let embed_n = job.plan.as_ref().map(|p| p.files.iter().filter(|f| f.cover.as_ref().map(|c| c.apply).unwrap_or(false)).count()).unwrap_or(0);
+    let cover_line = row![
+        text(format!("{} ", t("Cover:"))).size(13),
+        text(origin).size(13).style(origin_style),
+        space().width(12),
+        toggler(job.cover_all && has_cover_change).label(format!("{} ({embed_n} {})", t("Embed cover into all files"), t("files"))).on_toggle_maybe(if has_cover_change { Some(move |b| Message::ToggleCoverAll(job_idx, b)) } else { None }).text_size(13).size(20),
+    ]
+    .spacing(4)
+    .align_y(iced::Center)
+    .wrap();
+    let info = column![text(title).size(16), text(line1).size(13).style(th::dim), text(line2).size(12).style(th::dim), cover_line, cands, cover_tools].spacing(4);
     let mut notes = column![].spacing(2);
     for n in &job.notes {
         notes = notes.push(text(n.clone()).size(11).style(th::dim));
@@ -164,7 +184,7 @@ fn chip<'a>(label: String, style: fn(&Theme) -> text::Style) -> Element<'a, Mess
     }).into()
 }
 
-fn files_table<'a>(job: &'a Job) -> Element<'a, Message> {
+fn files_table<'a>(job_idx: usize, job: &'a Job) -> Element<'a, Message> {
     let Some(plan) = &job.plan else { return text(t("no plan")).into() };
     let rows: Vec<FileRow> = plan
         .files
@@ -238,7 +258,28 @@ fn files_table<'a>(job: &'a Job) -> Element<'a, Message> {
         .align_y(iced::Top);
         body = body.push(button(line).on_press(Message::SelectFile(idx)).style(th::list_button(r.selected)).padding(6).width(Fill));
     }
-    let tbl = column![head, rule::horizontal(1), body].spacing(4);
+    let mut tbl = column![head, rule::horizontal(1), body].spacing(4);
+    if !plan.delete_files.is_empty() {
+        let mut del = column![].spacing(2);
+        for (i, d) in plan.delete_files.iter().enumerate() {
+            let rel = d.path.strip_prefix(&plan.unit).unwrap_or(&d.path).display().to_string();
+            let line = row![
+                text("").width(Length::Fixed(36.0)),
+                container(checkbox(d.apply).on_toggle(move |b| Message::ToggleDelete(job_idx, i, b)).size(16)).width(Length::Fixed(60.0)),
+                text(rel).size(12).font(iced::Font::MONOSPACE).width(Fill),
+                container(status_text(if d.apply { Status::Foreign } else { Status::Ok }, if d.apply { t("delete") } else { t("keep") })).width(Length::Fixed(230.0)),
+                text("").width(Length::Fixed(150.0)),
+            ]
+            .spacing(8)
+            .width(Fill)
+            .align_y(iced::Center);
+            del = del.push(container(line).padding(6));
+        }
+        tbl = tbl.push(space().height(6));
+        tbl = tbl.push(text(format!("{} · {}", t("FOLDER FILES TO DELETE"), t("after every audio file was written without error; deleted for good"))).size(12).style(th::dim));
+        tbl = tbl.push(rule::horizontal(1));
+        tbl = tbl.push(del);
+    }
     container(column![text(t("FILES")).size(12).style(th::dim), scrollable(tbl).height(Fill)].spacing(6)).padding(10).width(Fill).height(Fill).style(th::card).into()
 }
 
@@ -314,13 +355,31 @@ fn footer<'a>(app: &'a App, job_idx: Option<usize>, job: Option<&'a Job>) -> Ele
     let ready = job.map(|j| j.state == JobState::Ready && j.plan.as_ref().map(|p| !p.is_noop()).unwrap_or(false)).unwrap_or(false);
     let n = job.and_then(|j| j.plan.as_ref()).map(|p| p.files.iter().filter(|f| !f.is_noop()).count()).unwrap_or(0);
     let journal = app.last_journal.clone().map(|j| format!("{} {j}", t("Journal:"))).unwrap_or_default();
+    // progress of whichever job is writing (the selected one first)
+    let running = job.and_then(|j| j.progress.clone()).or_else(|| app.jobs.iter().find_map(|j| j.progress.clone()));
+    let status: Element<'a, Message> = match running {
+        Some((done, total, name)) => column![
+            text(format!("{} {done} {} {total} · {name}", t("Writing"), t("of"))).size(12),
+            progress_bar(0.0..=total.max(1) as f32, done as f32).length(Fill).girth(6),
+        ]
+        .spacing(3)
+        .width(Fill)
+        .into(),
+        None => text(app.status.clone()).size(12).style(th::dim).width(Fill).into(),
+    };
+    let errors = app.log.iter().take(200).filter(|l| !l.ok).count();
+    let log_label = if errors > 0 { format!("{} ({errors} {})", t("Log"), t("errors")) } else { t("Log") };
     container(
         row![
-            text(app.status.clone()).size(12).style(th::dim).width(Fill),
+            status,
             text(journal).size(11).style(th::dim),
+            button(text(if app.log_open { format!("▾ {log_label}") } else { format!("▸ {log_label}") }).size(13)).on_press(Message::ToggleLog).style(button::secondary).padding([6, 10]),
             button(text(t("Remove from queue")).size(13)).on_press_maybe(job_idx.filter(|_| job.map(|j| j.state != JobState::Applying).unwrap_or(false)).map(Message::RemoveJob)).style(button::secondary).padding([6, 10]),
             button(text(t("Clean only")).size(13)).on_press_maybe(job_idx.filter(|_| ready).map(Message::CleanOnly)).style(button::secondary).padding([6, 10]),
-            button(text(format!("{} · {n} {}", t("Apply"), t("files"))).size(13)).on_press_maybe(job_idx.filter(|_| ready).map(Message::Apply)).style(button::primary).padding([6, 12]),
+            button(text({
+                let d = job.and_then(|j| j.plan.as_ref()).map(|p| p.deletions()).unwrap_or(0);
+                if d > 0 { format!("{} · {n} {}, {d} {}", t("Apply"), t("files"), t("to delete")) } else { format!("{} · {n} {}", t("Apply"), t("files")) }
+            }).size(13)).on_press_maybe(job_idx.filter(|_| ready).map(Message::Apply)).style(button::primary).padding([6, 12]),
         ]
         .spacing(8)
         .align_y(iced::Center)
@@ -350,7 +409,7 @@ pub fn main(app: &App) -> Element<'_, Message> {
         Some((i, j)) => {
             let bar = row![text(j.unit.path.display().to_string()).size(14).width(Fill), kind_picker(i, j)].spacing(8).align_y(iced::Center);
             let split = pane_grid(&app.panes, |_pane, which, _focused| match which {
-                Pane::Files => pane_grid::Content::new(files_table(j)),
+                Pane::Files => pane_grid::Content::new(files_table(i, j)),
                 Pane::Fields => pane_grid::Content::new(fields_table(j)),
             })
             .spacing(10)
@@ -361,5 +420,35 @@ pub fn main(app: &App) -> Element<'_, Message> {
         None => container(column![text(t("Drop a folder (album, compilation or audiobook) onto the window.")).size(16), text(t("tagjoe reads every file, checks each tag field, proposes tags, cover and file names – nothing is written until you click Apply.")).size(13).style(th::dim)].spacing(8).align_x(iced::Center)).center(Fill).into(),
     };
     let body = row![sidebar(app), container(main).width(Fill).height(Fill)].height(Fill);
-    column![header(app), body, footer(app, job.map(|(i, _)| i), job.map(|(_, j)| j))].into()
+    let mut col = column![header(app), body];
+    if app.log_open {
+        col = col.push(log_panel(app));
+    }
+    col.push(footer(app, job.map(|(i, _)| i), job.map(|(_, j)| j))).into()
+}
+
+/// Collapsible activity log above the footer: newest first, this session plus log.txt.
+fn log_panel(app: &App) -> Element<'_, Message> {
+    let mut rows = column![].spacing(1);
+    for l in app.log.iter().take(500) {
+        let style: fn(&Theme) -> text::Style = if l.ok { th::dim } else { th::err };
+        let unit = l.unit.rsplit('/').next().unwrap_or(&l.unit).to_string();
+        rows = rows.push(
+            row![
+                text(l.time.clone()).size(11).font(iced::Font::MONOSPACE).style(th::dim).width(Length::Fixed(150.0)),
+                text(unit).size(11).style(th::dim).width(Length::Fixed(260.0)),
+                text(l.file.clone()).size(11).font(iced::Font::MONOSPACE).width(FillPortion(2)),
+                text(l.action.clone()).size(11).style(style).width(FillPortion(2)),
+            ]
+            .spacing(8),
+        );
+    }
+    let empty = app.log.is_empty();
+    let head = row![
+        text(format!("{} · {}", t("LOG"), tagjoe_core::log::log_path().display())).size(12).style(th::dim).width(Fill),
+        button(text(t("Clear log")).size(12)).on_press_maybe(if empty { None } else { Some(Message::ClearLog) }).style(button::secondary).padding([3, 8]),
+    ]
+    .align_y(iced::Center);
+    let body: Element<'_, Message> = if empty { text(t("Nothing written yet.")).size(12).style(th::dim).into() } else { scrollable(rows).height(Fill).into() };
+    container(column![head, rule::horizontal(1), body].spacing(6)).padding([6, 12]).width(Fill).height(Length::Fixed(200.0)).style(th::header_bar).into()
 }

@@ -10,6 +10,8 @@ lässt sich rückgängig machen.
 
 - Formate: MP3 (ID3v2/ID3v1/APE), FLAC, Ogg Vorbis, Opus, MP4/M4A/M4B, AAC, WAV, AIFF, APE, WavPack, Musepack
 - Fremde Felder (Kommentare, Encoder-Reste, Shop-URLs, …) werden aufgelistet und entfernt; eine Behalte-Liste schützt Gewünschtes
+- Ordnerbereinigung: NFO-, M3U-, Bild-, TXT- und weitere Dateien werden nach fehlerfreiem Lauf gelöscht (vorher je Datei sichtbar, abwählbar)
+- Fortschritt und Protokoll (`log.txt`) im Fenster; Einträge können nach dem Schreiben aus der Warteschlange fallen
 - Manuelle Vervollständigung jedes Felds und des Covers (Datei oder URL), wenn keine Quelle Daten hat
 - Vorlagen für Datei- und Ordnernamen mit Platzhaltern, Funktionen und Bedingungen, Live-Vorschau
 - Kommandozeile (`tagjoe scan | propose | apply | clean | undo | identify`) und Desktop-App (`tagjoe-gui`)
