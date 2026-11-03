@@ -52,6 +52,7 @@ pub enum SettingsMessage {
     OpenLibraryEnabled(bool),
     UpdateCheck(bool),
     CheckUpdateNow,
+    DownloadFpcalc,
     DiscogsEnabled(bool),
     DiscogsToken(String),
     AudiobookDbKey(String),
@@ -82,6 +83,8 @@ pub enum SettingsMessage {
 pub enum Outcome {
     /// Save, close and ask GitHub for a newer release.
     CheckUpdate(Box<Config>),
+    /// Save, close and download fpcalc (Chromaprint) into tagjoe's tools folder.
+    DownloadFpcalc(Box<Config>),
     Keep,
     Close,
     Save(Box<Config>),
@@ -177,6 +180,7 @@ impl SettingsState {
             }
             M::Save => return Outcome::Save(Box::new(self.cfg.clone())),
             M::CheckUpdateNow => return Outcome::CheckUpdate(Box::new(self.cfg.clone())),
+            M::DownloadFpcalc => return Outcome::DownloadFpcalc(Box::new(self.cfg.clone())),
             M::OpenUrl(u) => crate::open_url(&u),
             M::Close => return Outcome::Close,
         }
@@ -242,6 +246,23 @@ fn preview(app: &App, kind: Kind, cfg: &Config) -> String {
 
 fn card<'a>(title: String, body: Element<'a, SettingsMessage>) -> Element<'a, SettingsMessage> {
     container(column![text(title).size(12).style(th::dim), body].spacing(6)).padding(10).width(Fill).style(th::card).into()
+}
+
+/// fpcalc (Chromaprint): found where, or missing with the way to get it.
+fn fpcalc_row<'a>() -> Element<'a, SettingsMessage> {
+    use tagjoe_core::sources::fingerprint;
+    match fingerprint::fpcalc_path() {
+        Some(p) => text(format!("{} {}", t("fpcalc found:"), p.display())).size(12).style(th::ok).into(),
+        None => {
+            let hint = if cfg!(target_os = "linux") { t("fpcalc missing – install the package libchromaprint-tools, or let tagjoe download it:") } else { t("fpcalc missing – let tagjoe download it:") };
+            let mut r = row![text(hint).size(12).style(th::err)].spacing(8).align_y(iced::Center);
+            if fingerprint::fpcalc_release().is_some() {
+                r = r.push(button(text(format!("{} (Chromaprint {})", t("Download fpcalc"), fingerprint::FPCALC_VERSION)).size(12)).on_press(SettingsMessage::DownloadFpcalc).style(button::secondary).padding([4, 8]));
+                r = r.push(text(t("from github.com/acoustid/chromaprint, SHA-256 checked, into tagjoe's own folder")).size(11).style(th::dim));
+            }
+            r.wrap().into()
+        }
+    }
 }
 
 /// One online source: switch, what it sends, links (privacy policy last), optional key field.
@@ -310,7 +331,7 @@ pub fn view<'a>(s: &'a SettingsState, app: &'a App) -> Element<'a, SettingsMessa
             source_card(t("ACOUSTID"), cfg.sources.acoustid_enabled, SettingsMessage::AcoustIdEnabled,
                 t("Acoustic fingerprints (needs fpcalc and MusicBrainz): sends the fingerprint and the duration of every file plus your application key. Register tagjoe at acoustid.org and paste the key."),
                 &["https://acoustid.org/new-application", "https://acoustid.org/license"],
-                Some(field(&t("AcoustID application key"), &cfg.sources.acoustid_key, SettingsMessage::AcoustIdKey))),
+                Some(column![field(&t("AcoustID application key"), &cfg.sources.acoustid_key, SettingsMessage::AcoustIdKey), fpcalc_row()].spacing(6).into())),
             source_card(t("MUSICBRAINZ"), cfg.sources.musicbrainz_enabled, SettingsMessage::MusicBrainzEnabled,
                 t("Release data for albums, compilations and audiobooks: sends album, artist or title and author as search terms, release ids and the program id with the project address (required by MusicBrainz)."),
                 &["https://metabrainz.org/privacy"], None),

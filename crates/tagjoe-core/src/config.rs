@@ -254,10 +254,28 @@ pub fn journal_dir() -> PathBuf {
     config_dir().join("journal")
 }
 pub fn cache_dir() -> PathBuf {
+    if cfg!(windows) {
+        if let Some(a) = std::env::var_os("LOCALAPPDATA") {
+            return PathBuf::from(a).join("tagjoe");
+        }
+    }
     if let Some(x) = std::env::var_os("XDG_CACHE_HOME") {
         return PathBuf::from(x).join("tagjoe");
     }
     config_dir().join("cache")
+}
+
+/// Helper programs tagjoe downloaded itself (`fpcalc`): `%LOCALAPPDATA%\tagjoe\bin` on Windows,
+/// `~/.local/share/tagjoe/bin` (XDG_DATA_HOME) elsewhere.
+pub fn tools_dir() -> PathBuf {
+    if cfg!(windows) {
+        return cache_dir().join("bin");
+    }
+    if let Some(x) = std::env::var_os("XDG_DATA_HOME") {
+        return PathBuf::from(x).join("tagjoe").join("bin");
+    }
+    let home = std::env::var_os("HOME").map(PathBuf::from).unwrap_or_else(|| PathBuf::from("."));
+    home.join(".local").join("share").join("tagjoe").join("bin")
 }
 
 impl Config {

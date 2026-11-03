@@ -24,6 +24,8 @@
   <a href="docs/install-ubuntu.en.md"><img src="docs/knoepfe/ubuntu-en.svg" alt="Install on Ubuntu" width="260"></a>
   &nbsp;
   <a href="docs/install-debian.en.md"><img src="docs/knoepfe/debian-en.svg" alt="Install on Debian" width="260"></a>
+  &nbsp;
+  <a href="docs/install-windows.en.md"><img src="docs/knoepfe/windows-en.svg" alt="Install on Windows" width="260"></a>
 </p>
 
 - **One schema, every field:** album artist, album, year, track and total, title, genre, label,
@@ -44,7 +46,7 @@
 
 ## Documentation
 
-- [`docs/install-ubuntu.en.md`](docs/install-ubuntu.en.md) · [`docs/install-debian.en.md`](docs/install-debian.en.md) – install, update, build from source
+- [`docs/install-ubuntu.en.md`](docs/install-ubuntu.en.md) · [`docs/install-debian.en.md`](docs/install-debian.en.md) · [`docs/install-windows.en.md`](docs/install-windows.en.md) – install, update, build from source
 - [`docs/DATENSCHUTZ.en.md`](docs/DATENSCHUTZ.en.md) – privacy: every network access, what is stored where
 - [`THIRD_PARTY.md`](THIRD_PARTY.md) – third-party libraries, external programs and data sources with licences (German)
 
@@ -76,7 +78,7 @@
 | Platform | Status | Note |
 | :--- | :--- | :--- |
 | **Linux (Ubuntu 24.04 / 26.04, Debian 12 / 13)** | development | one `.deb` for all, installed by script ([Ubuntu](docs/install-ubuntu.en.md), [Debian](docs/install-debian.en.md)) |
-| **Windows 10/11** | planned | MSI |
+| **Windows 10/11** | new | per-user MSI without administrator rights, signed ([Windows](docs/install-windows.en.md)) |
 | **macOS** | later | |
 
 ## Installation
@@ -97,6 +99,13 @@
   ```
 
 - **By hand:** package and `SHA256SUMS` from the [release page](https://github.com/joeMJ/tagjoe/releases/latest), see [docs/install-ubuntu.en.md](docs/install-ubuntu.en.md).
+- **Windows 10/11:** MSI from the [release page](https://github.com/joeMJ/tagjoe/releases/latest) – [docs/install-windows.en.md](docs/install-windows.en.md).
+
+> [!WARNING]
+> **Windows: publisher certificate – optional and with a risk.** The MSI is signed with a self-issued
+> certificate; without it Windows reports an "unknown publisher", but tagjoe works just the same. Adding it
+> makes it trusted for the whole computer – only do so if you trust the publisher. Risk, command, fingerprint
+> and removal: [Publisher certificate](docs/install-windows.en.md#publisher-certificate).
 
 ## How it works
 
@@ -122,7 +131,7 @@ network access and what is stored where: [`docs/DATENSCHUTZ.en.md`](docs/DATENSC
 ## Data sources
 
 - **[MusicBrainz](https://musicbrainz.org)** and **[Cover Art Archive](https://coverartarchive.org):** release data and covers; core data under [CC0](https://musicbrainz.org/doc/About/Data_License).
-- **[AcoustID](https://acoustid.org):** acoustic fingerprints, needs a free application key; fingerprints are computed locally with [Chromaprint](https://acoustid.org/chromaprint) (`fpcalc`).
+- **[AcoustID](https://acoustid.org):** acoustic fingerprints, needs a free application key; fingerprints are computed locally with [Chromaprint](https://acoustid.org/chromaprint) (`fpcalc`, from the distribution package or downloaded on click, SHA-256 checked).
 - **[Discogs](https://www.discogs.com):** second music source with a personal access token.
 - **[AudiobookDB](https://audiobookdb.org)** and **[Audnexus](https://github.com/laxamentumtech/audnexus):** audiobook data; AudiobookDB asks for this attribution.
 - **[Deutsche Nationalbibliothek](https://www.dnb.de):** German audiobooks via SRU; covers by ISBN from [Open Library](https://openlibrary.org).

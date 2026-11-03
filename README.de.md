@@ -25,6 +25,8 @@
   <a href="docs/install-ubuntu.md"><img src="docs/knoepfe/ubuntu.svg" alt="Auf Ubuntu installieren" width="260"></a>
   &nbsp;
   <a href="docs/install-debian.md"><img src="docs/knoepfe/debian.svg" alt="Auf Debian installieren" width="260"></a>
+  &nbsp;
+  <a href="docs/install-windows.md"><img src="docs/knoepfe/windows.svg" alt="Auf Windows installieren" width="260"></a>
 </p>
 
 - **Ein Schema, jedes Feld:** Album-Interpret, Album, Jahr, Titelnummer und Gesamtzahl, Titel,
@@ -47,7 +49,7 @@
 
 ## Dokumentation
 
-- [`docs/install-ubuntu.md`](docs/install-ubuntu.md) · [`docs/install-debian.md`](docs/install-debian.md) – installieren, aktualisieren, selbst bauen
+- [`docs/install-ubuntu.md`](docs/install-ubuntu.md) · [`docs/install-debian.md`](docs/install-debian.md) · [`docs/install-windows.md`](docs/install-windows.md) – installieren, aktualisieren, selbst bauen
 - [`docs/DATENSCHUTZ.md`](docs/DATENSCHUTZ.md) – Datenschutz: jeder Netzzugriff, was wo gespeichert wird
 - [`THIRD_PARTY.md`](THIRD_PARTY.md) – Bibliotheken Dritter, externe Programme und Datenquellen mit Lizenzen
 
@@ -79,7 +81,7 @@
 | Plattform | Stand | Hinweis |
 | :--- | :--- | :--- |
 | **Linux (Ubuntu 24.04 / 26.04, Debian 12 / 13)** | Entwicklung | ein `.deb` für alle, Installation per Skript ([Ubuntu](docs/install-ubuntu.md), [Debian](docs/install-debian.md)) |
-| **Windows 10/11** | geplant | MSI |
+| **Windows 10/11** | neu | MSI pro Benutzer ohne Administratorrechte, signiert ([Windows](docs/install-windows.md)) |
 | **macOS** | später | |
 
 ## Installation
@@ -100,6 +102,14 @@
   ```
 
 - **Von Hand:** Paket und `SHA256SUMS` von der [Release-Seite](https://github.com/joeMJ/tagjoe/releases/latest), siehe [docs/install-ubuntu.md](docs/install-ubuntu.md).
+- **Windows 10/11:** MSI von der [Release-Seite](https://github.com/joeMJ/tagjoe/releases/latest) – [docs/install-windows.md](docs/install-windows.md).
+
+> [!WARNING]
+> **Windows: Zertifikat des Herausgebers – freiwillig und mit Risiko.** Die MSI ist mit einem selbst
+> ausgestellten Zertifikat signiert; ohne Eintrag meldet Windows einen „unbekannten Herausgeber“, tagjoe
+> funktioniert trotzdem genauso. Das Eintragen macht es für den ganzen Rechner vertrauenswürdig – nur, wenn du
+> dem Herausgeber vertraust. Risiko, Befehl, Fingerabdruck und Entfernen:
+> [Zertifikat des Herausgebers](docs/install-windows.md#zertifikat-des-herausgebers).
 
 ## So arbeitet es
 
@@ -126,7 +136,7 @@ aus; jeder Netzzugriff und was wo gespeichert wird: [`docs/DATENSCHUTZ.md`](docs
 ## Datenquellen
 
 - **[MusicBrainz](https://musicbrainz.org)** und **[Cover Art Archive](https://coverartarchive.org):** Release-Daten und Cover; Kerndaten unter [CC0](https://musicbrainz.org/doc/About/Data_License).
-- **[AcoustID](https://acoustid.org):** akustische Fingerabdrücke, braucht einen kostenlosen Anwendungsschlüssel; die Fingerabdrücke berechnet [Chromaprint](https://acoustid.org/chromaprint) (`fpcalc`) lokal.
+- **[AcoustID](https://acoustid.org):** akustische Fingerabdrücke, braucht einen kostenlosen Anwendungsschlüssel; die Fingerabdrücke berechnet [Chromaprint](https://acoustid.org/chromaprint) (`fpcalc`) lokal – aus dem Distributionspaket oder auf Klick nachgeladen, SHA-256 geprüft.
 - **[Discogs](https://www.discogs.com):** zweite Musikquelle mit persönlichem Zugangsschlüssel.
 - **[AudiobookDB](https://audiobookdb.org)** und **[Audnexus](https://github.com/laxamentumtech/audnexus):** Hörbuchdaten; AudiobookDB bittet um diese Nennung.
 - **[Deutsche Nationalbibliothek](https://www.dnb.de):** deutsche Hörbücher über SRU; Cover per ISBN von [Open Library](https://openlibrary.org).

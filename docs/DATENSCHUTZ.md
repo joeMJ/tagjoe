@@ -28,6 +28,7 @@ zwischengespeichert, damit dieselbe Frage nicht zweimal gestellt wird.
 | **Audnexus** (`api.audnex.us`) | ASIN und Region | Audible-Metadaten über die freie Audnexus-Schnittstelle | keine veröffentlichte Datenschutzerklärung; [Projektseite](https://github.com/laxamentumtech/audnexus) |
 | **Deutsche Nationalbibliothek** (`services.dnb.de`) | Titel und Autor als Suchbegriffe (SRU) | deutsche Hörbücher: Titel, Autor, Sprecher, Verlag, Jahr, ISBN | [Datenschutzerklärung der DNB](https://www.dnb.de/DE/Service/Datenschutz/datenschutz_node.html) |
 | **Open Library** (`covers.openlibrary.org`) | ISBN | Cover zu DNB-Treffern | [Internet Archive](https://archive.org/about/terms) |
+| **GitHub** (`github.com`), nur auf Klick | nichts außer IP-Adresse und Programmkennung | **fpcalc herunterladen** (Einstellungen → Quellen → AcoustID): lädt das Chromaprint-Release `chromaprint-fpcalc-1.6.2-…` von `github.com/acoustid/chromaprint`, prüft die SHA-256-Summe gegen den im Programm hinterlegten Wert und legt `fpcalc` in den eigenen Werkzeugordner (Windows `%LOCALAPPDATA%\tagjoe\bin`, Linux `~/.local/share/tagjoe/bin`) | [GitHub Privacy Statement](https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement) |
 | **GitHub** (`api.github.com`, Downloads von `github.com`) | nichts außer IP-Adresse und Programmkennung | Updateprüfung (**Einstellungen → Allgemein**, standardmäßig aus): höchstens einmal täglich die Frage nach dem neuesten Release; ein Paket wird nur nach deiner Bestätigung geladen und gegen `SHA256SUMS` geprüft | [GitHub Privacy Statement](https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement) |
 
 Cover, die eine Quelle als Adresse nennt (Discogs-Bilder, Open Library), lädt tagjoe von dort.
@@ -46,8 +47,9 @@ Windows: `%APPDATA%\tagjoe\` und `%LOCALAPPDATA%\tagjoe\`):
   Dateinamen deiner Musik.
 - **Protokoll** `log.txt`: die letzten 2000 Vorgänge mit Zeit, Ordner, Datei und Ergebnis;
   „Protokoll leeren“ löscht die Datei.
-- **Zwischenspeicher** `cache/http/`: Antworten der Quellen (Standard 30 Tage, einstellbar) und
-  unter `cache/updates/` heruntergeladene Pakete. Kann jederzeit gelöscht werden.
+- **Zwischenspeicher** (Linux `~/.cache/tagjoe/`, Windows `%LOCALAPPDATA%\tagjoe\`): `http/` mit
+  Antworten der Quellen (Standard 30 Tage, einstellbar), `updates/` mit heruntergeladenen Paketen,
+  unter Windows `bin\fpcalc.exe`. Kann jederzeit gelöscht werden.
 
 Die Audiodateien selbst werden nur dort verändert, wo du sie abgelegt hast, und nur nach
 „Übernehmen“ oder „Nur bereinigen“. Die Ordnerbereinigung löscht Dateien **endgültig** (kein

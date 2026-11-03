@@ -185,3 +185,17 @@ pub fn update_download_task(release: tagjoe_core::update::Release) -> Task<Messa
         Message::UpdateDownloaded,
     )
 }
+
+/// Download fpcalc (Chromaprint) into tagjoe's tools folder, after the user clicked the button.
+pub fn fpcalc_download_task() -> Task<Message> {
+    Task::perform(
+        async move {
+            let (tx, rx) = iced::futures::channel::oneshot::channel();
+            std::thread::spawn(move || {
+                let _ = tx.send(tagjoe_core::sources::fingerprint::download_fpcalc());
+            });
+            rx.await.unwrap_or_else(|_| Err("download thread failed".into()))
+        },
+        Message::FpcalcDownloaded,
+    )
+}

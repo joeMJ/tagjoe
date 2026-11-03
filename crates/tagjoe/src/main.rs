@@ -45,6 +45,8 @@ enum Cmd {
     Scan { folder: PathBuf },
     /// Ask GitHub for a newer release (sends the IP address and the program id to GitHub)
     UpdateCheck,
+    /// Download fpcalc (Chromaprint) from GitHub into tagjoe's tools folder, SHA-256 checked
+    FpcalcDownload,
     /// Build the change plan (tags, cover, names) without writing anything
     Propose { folder: PathBuf },
     /// Remove foreign fields and secondary containers only (no renaming, no source lookup)
@@ -415,6 +417,7 @@ fn main() -> ExitCode {
             }
         }),
         Cmd::Identify { folder } => cmd_identify(folder, &cfg, cli.kind.as_ref(), cli.json),
+        Cmd::FpcalcDownload => tagjoe_core::sources::fingerprint::download_fpcalc().map(|p| outln!("fpcalc ready: {}", p.display())),
         Cmd::UpdateCheck => match tagjoe_core::update::check() {
             Ok(Some(r)) => {
                 outln!("tagjoe {} is available (installed: {}): {}", r.tag_name, tagjoe_core::VERSION, r.html_url);

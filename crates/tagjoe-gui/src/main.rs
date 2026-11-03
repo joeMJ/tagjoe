@@ -171,6 +171,7 @@ pub enum Message {
     UpdateDownloaded(Result<PathBuf, String>),
     UpdateInstall,
     UpdateDismiss,
+    FpcalcDownloaded(Result<PathBuf, String>),
 }
 
 /// Command line: `tagjoe-gui [--theme light|dark] [--offline] [FOLDER…]`
@@ -755,6 +756,7 @@ fn update(app: &mut App, msg: Message) -> Task<Message> {
         Message::Settings(m) => {
             let mut close = false;
             let mut check = false;
+            let mut fpcalc = false;
             let mut save: Option<Config> = None;
             if let Some(s) = app.settings.as_mut() {
                 match s.update(m) {
@@ -768,6 +770,11 @@ fn update(app: &mut App, msg: Message) -> Task<Message> {
                         save = Some(*cfg);
                         close = true;
                         check = true;
+                    }
+                    settings::Outcome::DownloadFpcalc(cfg) => {
+                        save = Some(*cfg);
+                        close = true;
+                        fpcalc = true;
                     }
                 }
             }
@@ -789,6 +796,22 @@ fn update(app: &mut App, msg: Message) -> Task<Message> {
             if check {
                 return update(app, Message::CheckUpdate(true));
             }
+            if fpcalc {
+                app.status = i18n::t("Downloading fpcalc (Chromaprint) and checking its SHA-256 sum…");
+                return work::fpcalc_download_task();
+            }
+        }
+        Message::FpcalcDownloaded(r) => {
+            app.status = match r {
+                Ok(p) => {
+                    app.log("", "fpcalc", &format!("{} {}", i18n::t("downloaded to"), p.display()), true);
+                    format!("{} {}", i18n::t("fpcalc ready:"), p.display())
+                }
+                Err(e) => {
+                    app.log("", "fpcalc", &format!("{}: {e}", i18n::t("error")), false);
+                    format!("{}: {e}", i18n::t("fpcalc download failed"))
+                }
+            };
         }
         Message::CheckUpdate(manual) => {
             app.update = Some(UpdateState::Checking);

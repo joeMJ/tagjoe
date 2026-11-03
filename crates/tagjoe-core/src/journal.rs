@@ -40,23 +40,36 @@ pub fn now_human() -> String {
     civil(secs + local_offset_secs(), ' ', ':')
 }
 
-/// Offset of the local time zone in seconds (asked once from `date +%z` on Unix; 0 elsewhere).
+/// Offset of the local time zone in seconds, asked once per run: `date +%z` on Unix,
+/// `powershell (Get-Date).ToString('zzz')` on Windows; 0 when neither answers.
 fn local_offset_secs() -> i64 {
     static OFFSET: std::sync::OnceLock<i64> = std::sync::OnceLock::new();
     *OFFSET.get_or_init(|| {
-        if cfg!(unix) {
-            let out = std::process::Command::new("date").arg("+%z").output().ok();
-            let s = out.map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string()).unwrap_or_default();
-            // +0100 / -0530
-            if s.len() == 5 {
-                let sign = if s.starts_with('-') { -1 } else { 1 };
-                let h: i64 = s[1..3].parse().unwrap_or(0);
-                let m: i64 = s[3..5].parse().unwrap_or(0);
-                return sign * (h * 3600 + m * 60);
-            }
-        }
-        0
+        let out = if cfg!(windows) {
+            std::process::Command::new("powershell").args(["-NoProfile", "-NonInteractive", "-Command", "(Get-Date).ToString('zzz')"]).output().ok()
+        } else {
+            std::process::Command::new("date").arg("+%z").output().ok()
+        };
+        let s = out.map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string()).unwrap_or_default();
+        parse_offset(&s).unwrap_or(0)
     })
+}
+
+/// `+0100`, `-0530` or `+01:00` → seconds.
+fn parse_offset(s: &str) -> Option<i64> {
+    let s = s.trim();
+    let sign = match s.chars().next()? {
+        '-' => -1,
+        '+' => 1,
+        _ => return None,
+    };
+    let digits: String = s[1..].chars().filter(|c| c.is_ascii_digit()).collect();
+    if digits.len() != 4 {
+        return None;
+    }
+    let h: i64 = digits[..2].parse().ok()?;
+    let m: i64 = digits[2..].parse().ok()?;
+    Some(sign * (h * 3600 + m * 60))
 }
 
 fn civil_now(sep: char, time_sep: char) -> String {
@@ -110,6 +123,13 @@ impl Journal {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn offsets() {
+        assert_eq!(parse_offset("+0100"), Some(3600));
+        assert_eq!(parse_offset("-0530"), Some(-19800));
+        assert_eq!(parse_offset("+01:00"), Some(3600));
+        assert_eq!(parse_offset("junk"), None);
+    }
     #[test]
     fn timestamp_shape() {
         let t = timestamp();

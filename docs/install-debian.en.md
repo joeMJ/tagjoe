@@ -34,7 +34,9 @@ sudo apt install ./tagjoe_<version>_amd64.deb
 tagjoe then shows up in the application menu; in a terminal the window starts with `tagjoe-gui`,
 the command line with `tagjoe`. Acoustic fingerprints (AcoustID) need `fpcalc` from
 `libchromaprint-tools`, the system dialogs need `xdg-desktop-portal`; apt installs both as
-recommendations.
+recommendations. If `fpcalc` is still missing, **Settings → Sources → AcoustID** offers the button
+**Download fpcalc** (Chromaprint release from GitHub, SHA-256 checked, into
+`~/.local/share/tagjoe/bin/`).
 
 After the first start: **Settings → Sources and keys** – every online source is off until you
 switch it on ([privacy](DATENSCHUTZ.en.md)).

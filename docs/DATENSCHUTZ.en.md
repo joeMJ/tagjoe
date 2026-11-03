@@ -27,6 +27,7 @@ are cached locally so the same question is not asked twice.
 | **Audnexus** (`api.audnex.us`) | ASIN and region | Audible metadata through the free Audnexus API | no published privacy policy; [project page](https://github.com/laxamentumtech/audnexus) |
 | **Deutsche Nationalbibliothek** (`services.dnb.de`) | title and author as search terms (SRU) | German audiobooks: title, author, narrator, publisher, year, ISBN | [DNB privacy statement](https://www.dnb.de/DE/Service/Datenschutz/datenschutz_node.html) (German) |
 | **Open Library** (`covers.openlibrary.org`) | ISBN | covers for DNB results | [Internet Archive](https://archive.org/about/terms) |
+| **GitHub** (`github.com`), only on click | nothing but IP address and program id | **Download fpcalc** (Settings → Sources → AcoustID): downloads the Chromaprint release `chromaprint-fpcalc-1.6.2-…` from `github.com/acoustid/chromaprint`, checks its SHA-256 sum against the value compiled into the program and puts `fpcalc` into tagjoe's own tools folder (Windows `%LOCALAPPDATA%\tagjoe\bin`, Linux `~/.local/share/tagjoe/bin`) | [GitHub privacy statement](https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement) |
 | **GitHub** (`api.github.com`, downloads from `github.com`) | nothing but IP address and program id | update check (**Settings → General**, off by default): at most once a day the question for the latest release; a package is downloaded only after your confirmation and verified against `SHA256SUMS` | [GitHub privacy statement](https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement) |
 
 Covers that a source names by address (Discogs images, Open Library) are fetched from there.
@@ -43,8 +44,9 @@ Windows: `%APPDATA%\tagjoe\` and `%LOCALAPPDATA%\tagjoe\`):
   as a file, old file names) so that "Undo" works. Contains paths and file names of your music.
 - **Log** `log.txt`: the last 2000 actions with time, folder, file and result; "Clear log"
   deletes the file.
-- **Cache** `cache/http/`: answers of the sources (30 days by default, adjustable) and, under
-  `cache/updates/`, downloaded packages. Can be deleted at any time.
+- **Cache** (Linux `~/.cache/tagjoe/`, Windows `%LOCALAPPDATA%\tagjoe\`): `http/` with answers of
+  the sources (30 days by default, adjustable), `updates/` with downloaded packages, on Windows
+  `bin\fpcalc.exe`. Can be deleted at any time.
 
 The audio files themselves are changed only where you keep them, and only after "Apply" or
 "Clean only". The folder clean-up deletes files **for good** (no trash); which ones is shown in

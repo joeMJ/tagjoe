@@ -1,0 +1,2 @@
+// Program icon for tagjoe.exe and tagjoe-gui.exe (compiled by build.rs with rc.exe from the Windows SDK).
+1 ICON "tagjoe.ico"

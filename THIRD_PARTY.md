@@ -584,7 +584,7 @@ Die vollständigen Lizenztexte stehen in `THIRD_PARTY_LICENSES.txt`. Beide Datei
 
 | Programm | Lizenz | Hinweis |
 |---|---|---|
-| [Chromaprint](https://acoustid.org/chromaprint) `fpcalc` (Paket `libchromaprint-tools`) | LGPL-2.1 | berechnet die akustischen Fingerabdrücke für AcoustID lokal; tagjoe ruft das Programm auf und bindet die Bibliothek nicht ein |
+| [Chromaprint](https://acoustid.org/chromaprint) `fpcalc` (Paket `libchromaprint-tools`, oder auf Klick aus dem [Chromaprint-Release 1.6.2](https://github.com/acoustid/chromaprint/releases/tag/v1.6.2) geladen, SHA-256 geprüft) | LGPL-2.1 | berechnet die akustischen Fingerabdrücke für AcoustID lokal; tagjoe ruft das Programm auf und bindet die Bibliothek nicht ein; nicht in den Paketen enthalten |
 | `xdg-desktop-portal` | LGPL-2.1 | Dateidialoge des Desktops (über die Crate `rfd`) |
 | `pkexec` (polkit), `apt-get` | GPL-2.0 | nur für die Installation eines heruntergeladenen Updates |
 
