@@ -38,7 +38,7 @@ Architecture: $arch
 Maintainer: joeMJ <1265358+joeMJ@users.noreply.github.com>
 Installed-Size: $size
 Depends: libc6, libxkbcommon0, libxkbcommon-x11-0, libxcursor1, libxrandr2, libxi6, libwayland-client0, libgl1
-Recommends: libchromaprint-tools, mesa-vulkan-drivers
+Recommends: libchromaprint-tools, mesa-vulkan-drivers, xdg-desktop-portal
 Section: sound
 Priority: optional
 Homepage: https://github.com/joeMJ/tagjoe
