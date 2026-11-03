@@ -23,19 +23,22 @@ pub fn http(cfg: &Config) -> Http {
 pub fn scan_task(path: PathBuf) -> Task<Message> {
     let (tx, rx) = mpsc::unbounded::<Message>();
     std::thread::spawn(move || {
-        match scan::scan_path(&path) {
-            Ok(units) => {
-                if units.is_empty() {
-                    let _ = tx.unbounded_send(Message::Status(format!("No audio files in {}", path.display())));
-                }
-                for u in units {
-                    let _ = tx.unbounded_send(Message::Scanned(Arc::new(u)));
-                }
+        let mut found = 0;
+        let ptx = tx.clone();
+        let r = scan::scan_path_with(&path, &mut |e| match e {
+            scan::ScanEvent::Total(n) => {
+                let _ = ptx.unbounded_send(Message::ScanProgress(0, n, String::new()));
             }
-            Err(e) => {
-                let _ = tx.unbounded_send(Message::Status(format!("{e}")));
+            scan::ScanEvent::File { done, total, path } => {
+                let name = path.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+                let _ = ptx.unbounded_send(Message::ScanProgress(done, total, name));
             }
-        }
+            scan::ScanEvent::Unit(u) => {
+                found += 1;
+                let _ = ptx.unbounded_send(Message::Scanned(Arc::new(u)));
+            }
+        });
+        let _ = tx.unbounded_send(Message::ScanDone(path.clone(), found, r.err().map(|e| e.to_string())));
     });
     Task::run(rx, |m| m)
 }

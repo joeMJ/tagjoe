@@ -365,15 +365,22 @@ fn footer<'a>(app: &'a App, job_idx: Option<usize>, job: Option<&'a Job>) -> Ele
     let journal = app.last_journal.clone().map(|j| format!("{} {j}", t("Journal:"))).unwrap_or_default();
     // progress of whichever job is writing (the selected one first)
     let running = job.and_then(|j| j.progress.clone()).or_else(|| app.jobs.iter().find_map(|j| j.progress.clone()));
-    let status: Element<'a, Message> = match running {
-        Some((done, total, name)) => column![
+    let status: Element<'a, Message> = match (running, app.scan_progress.clone()) {
+        (Some((done, total, name)), _) => column![
             text(if name.is_empty() { format!("{} {done} {} {total}", t("Writing"), t("of")) } else { format!("{} {} {} {total} · {name}", t("Writing"), (done + 1).min(total), t("of")) }).size(12),
             progress_bar(0.0..=total.max(1) as f32, done as f32).length(Fill).girth(6),
         ]
         .spacing(3)
         .width(Fill)
         .into(),
-        None => text(app.status.clone()).size(12).style(th::dim).width(Fill).into(),
+        (None, Some((done, total, name))) => column![
+            text(if name.is_empty() { format!("{} {total} {}", t("Reading:"), t("files found")) } else { format!("{} {done} {} {total} · {name}", t("Reading"), t("of")) }).size(12),
+            progress_bar(0.0..=total.max(1) as f32, done as f32).length(Fill).girth(6),
+        ]
+        .spacing(3)
+        .width(Fill)
+        .into(),
+        (None, None) => text(app.status.clone()).size(12).style(th::dim).width(Fill).into(),
     };
     let errors = app.log.iter().take(200).filter(|l| !l.ok).count();
     let log_label = if errors > 0 { format!("{} ({errors} {})", t("Log"), t("errors")) } else { t("Log") };

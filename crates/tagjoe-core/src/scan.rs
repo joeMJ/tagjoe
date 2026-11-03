@@ -339,15 +339,46 @@ fn rank_cover(p: &Path) -> u8 {
 /// Scan a folder. A folder with audio files is one unit (CD subfolders are merged);
 /// otherwise each subfolder is scanned in turn.
 pub fn scan_path(path: &Path) -> Result<Vec<Unit>, ScanError> {
-    if !path.is_dir() {
-        return Err(ScanError::NotAFolder(path.to_path_buf()));
-    }
     let mut units = Vec::new();
-    scan_into(path, &mut units)?;
+    scan_path_with(path, &mut |e| {
+        if let ScanEvent::Unit(u) = e {
+            units.push(u);
+        }
+    })?;
     Ok(units)
 }
 
-fn scan_into(path: &Path, units: &mut Vec<Unit>) -> Result<(), ScanError> {
+/// What a scan reports while it runs (for a progress display).
+#[derive(Debug)]
+pub enum ScanEvent {
+    /// Audio files found by listing the folders (before any file is read).
+    Total(usize),
+    /// One file read: files done so far, total, path.
+    File { done: usize, total: usize, path: PathBuf },
+    /// A finished unit (album, compilation or audiobook folder).
+    Unit(Unit),
+}
+
+/// Like [`scan_path`], but reports every file and hands over each unit as soon as it is read.
+/// Counting first costs only directory listings, which are cheap next to reading tags over a
+/// network share.
+pub fn scan_path_with(path: &Path, report: &mut dyn FnMut(ScanEvent)) -> Result<(), ScanError> {
+    if !path.is_dir() {
+        return Err(ScanError::NotAFolder(path.to_path_buf()));
+    }
+    let total = count_audio(path);
+    report(ScanEvent::Total(total));
+    let mut done = 0;
+    scan_into(path, &mut done, total, report)
+}
+
+/// Audio files under `path` (hidden entries skipped, like the scan itself).
+fn count_audio(path: &Path) -> usize {
+    let Ok((files, dirs)) = list_dir(path) else { return 0 };
+    files.iter().filter(|p| is_audio(p)).count() + dirs.iter().map(|d| count_audio(d)).sum::<usize>()
+}
+
+fn scan_into(path: &Path, done: &mut usize, total: usize, report: &mut dyn FnMut(ScanEvent)) -> Result<(), ScanError> {
     let (files, dirs) = list_dir(path)?;
     let audio: Vec<&PathBuf> = files.iter().filter(|p| is_audio(p)).collect();
     let disc_dirs: Vec<&PathBuf> = dirs.iter().filter(|d| d.file_name().map(|n| is_disc_folder(&n.to_string_lossy())).unwrap_or(false)).collect();
@@ -365,18 +396,20 @@ fn scan_into(path: &Path, units: &mut Vec<Unit>) -> Result<(), ScanError> {
                 Ok(info) => unit.files.push(info),
                 Err(e) => unit.warnings.push(e.to_string()),
             }
+            *done += 1;
+            report(ScanEvent::File { done: *done, total, path: p.clone() });
         }
         images.sort_by_key(|p| (rank_cover(p), p.clone()));
         unit.cover_files = images;
         unit.kind = crate::classify::classify(&unit);
-        units.push(unit);
+        report(ScanEvent::Unit(unit));
         // other subfolders (not disc folders) are scanned as their own units
         for d in dirs.iter().filter(|d| !disc_dirs.contains(d)) {
-            scan_into(d, units)?;
+            scan_into(d, done, total, report)?;
         }
     } else {
         for d in &dirs {
-            scan_into(d, units)?;
+            scan_into(d, done, total, report)?;
         }
     }
     Ok(())

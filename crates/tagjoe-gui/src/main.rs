@@ -108,6 +108,8 @@ pub struct App {
     pub log_open: bool,
     /// Update banner state.
     pub update: Option<UpdateState>,
+    /// Progress of a running scan: (files read, total, current file).
+    pub scan_progress: Option<(usize, usize, String)>,
 }
 
 #[derive(Debug, Clone)]
@@ -129,6 +131,10 @@ pub enum Message {
     AddPath,
     Dropped(PathBuf),
     Scanned(Arc<Unit>),
+    /// Files read so far, total, current file name (empty while counting).
+    ScanProgress(usize, usize, String),
+    /// Scan of a dropped folder finished: folder, units found, error.
+    ScanDone(PathBuf, usize, Option<String>),
     Progress(usize, String),
     Identified(usize, Result<Vec<Identified>, String>),
     SelectJob(usize),
@@ -206,7 +212,7 @@ fn boot() -> (App, Task<Message>) {
     let cfg = Config::load();
     tagjoe_core::i18n::init_from_env(&cfg.language);
     let panes = pane_grid::State::with_configuration(pane_grid::Configuration::Split { axis: pane_grid::Axis::Horizontal, ratio: 0.5, a: Box::new(pane_grid::Configuration::Pane(Pane::Files)), b: Box::new(pane_grid::Configuration::Pane(Pane::Fields)) });
-    let app = App { cfg: Arc::new(cfg), theme: if a.theme.as_deref() == Some("dark") { theme::dark() } else { theme::light() }, jobs: vec![], selected: None, path_input: String::new(), status: i18n::t("Drop a folder onto the window or enter a path."), settings: None, offline: a.offline, last_journal: work::last_journal(), panes, log: load_log(), log_open: false, update: None };
+    let app = App { cfg: Arc::new(cfg), theme: if a.theme.as_deref() == Some("dark") { theme::dark() } else { theme::light() }, jobs: vec![], selected: None, path_input: String::new(), status: i18n::t("Drop a folder onto the window or enter a path."), settings: None, offline: a.offline, last_journal: work::last_journal(), panes, log: load_log(), log_open: false, update: None, scan_progress: None };
     let mut tasks = Vec::new();
     // automatic check: only when switched on, at most once a day
     if app.cfg.update_check && tagjoe_core::update::now().saturating_sub(app.cfg.update_last_check) >= tagjoe_core::update::CHECK_INTERVAL_SECS {
@@ -410,6 +416,18 @@ fn update(app: &mut App, msg: Message) -> Task<Message> {
                 app.status = format!("{} {}", i18n::t("Scanning"), p.display());
                 return work::scan_task(p);
             }
+        }
+        Message::ScanProgress(done, total, name) => {
+            app.status = if name.is_empty() { format!("{} {total} {}", i18n::t("Reading:"), i18n::t("files found")) } else { format!("{} {done} {} {total} · {name}", i18n::t("Reading"), i18n::t("of")) };
+            app.scan_progress = Some((done, total, name));
+        }
+        Message::ScanDone(path, found, err) => {
+            app.scan_progress = None;
+            app.status = match err {
+                Some(e) => e,
+                None if found == 0 => format!("{} {}", i18n::t("No audio files in"), path.display()),
+                None => format!("{} {found} {}", i18n::t("Read:"), i18n::t("folder(s)")),
+            };
         }
         Message::Scanned(unit) => {
             if app.jobs.iter().any(|j| j.unit.path == unit.path) {

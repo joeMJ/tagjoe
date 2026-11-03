@@ -71,3 +71,22 @@ fn check_and_plan() {
     assert!(cover.apply && cover.width == 64);
     assert!(plan.files[0].removals.iter().any(|r| r.key == "TXXX:UPLOADED BY" && r.apply));
 }
+
+#[test]
+fn scan_reports_progress_and_units() {
+    use tagjoe_core::scan::{scan_path_with, ScanEvent};
+    let mut total = None;
+    let mut files = vec![];
+    let mut units = 0;
+    scan_path_with(&fixtures(), &mut |e| match e {
+        ScanEvent::Total(n) => total = Some(n),
+        ScanEvent::File { done, total, path } => files.push((done, total, path)),
+        ScanEvent::Unit(_) => units += 1,
+    })
+    .unwrap();
+    assert_eq!(total, Some(4), "four audio fixtures counted before reading");
+    assert_eq!(files.len(), 4);
+    assert_eq!(files.last().unwrap().0, 4);
+    assert!(files.iter().all(|f| f.1 == 4));
+    assert_eq!(units, 1);
+}
