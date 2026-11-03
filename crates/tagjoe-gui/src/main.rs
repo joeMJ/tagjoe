@@ -37,6 +37,8 @@ pub enum JobState {
 
 /// One folder in the queue.
 pub struct Job {
+    /// Stable id: background results are matched by it, never by the position in the queue.
+    pub id: u64,
     pub unit: Arc<Unit>,
     pub state: JobState,
     pub candidates: Vec<Identified>,
@@ -47,6 +49,10 @@ pub struct Job {
     pub file_overrides: BTreeMap<(usize, Field), String>,
     pub cover_override: Option<CoverSource>,
     pub cover_handle: Option<image::Handle>,
+    /// Cover already embedded in the files (shown when no new cover is proposed).
+    pub embedded_cover: Option<image::Handle>,
+    /// Free-text search for the release ("artist album").
+    pub search_input: String,
     pub notes: Vec<String>,
     /// Failed files of the last run (shown in red in the release card).
     pub errors: Vec<String>,
@@ -118,6 +124,14 @@ pub struct App {
     pub update: Option<UpdateState>,
     /// Progress of a running scan: (files read, total, current file).
     pub scan_progress: Option<(usize, usize, String)>,
+    pub next_id: u64,
+}
+
+impl App {
+    /// Queue position of a job by its stable id.
+    fn job_index(&self, id: u64) -> Option<usize> {
+        self.jobs.iter().position(|j| j.id == id)
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -139,12 +153,16 @@ pub enum Message {
     AddPath,
     Dropped(PathBuf),
     Scanned(Arc<Unit>),
+    EmbeddedCover(u64, Option<Vec<u8>>),
+    Reidentify(usize),
+    SearchInput(usize, String),
+    SearchRun(usize),
     /// Files read so far, total, current file name (empty while counting).
     ScanProgress(usize, usize, String),
     /// Scan of a dropped folder finished: folder, units found, error.
     ScanDone(PathBuf, usize, Option<String>),
-    Progress(usize, String),
-    Identified(usize, Result<Vec<Identified>, String>),
+    Progress(u64, String),
+    Identified(u64, Result<Vec<Identified>, String>),
     SelectJob(usize),
     RemoveJob(usize),
     SelectFile(usize),
@@ -158,12 +176,12 @@ pub enum Message {
     EditAlbum(usize, Field, String),
     CoverInput(usize, String),
     CoverUse(usize),
-    CoverFetched(usize, Result<Vec<u8>, String>),
+    CoverFetched(u64, Result<Vec<u8>, String>),
     CoverFromFolder(usize),
     Apply(usize),
     CleanOnly(usize),
-    ApplyProgress(usize, Progress),
-    Applied(usize, ApplyResult),
+    ApplyProgress(u64, Progress),
+    Applied(u64, ApplyResult),
     ToggleLog,
     ToggleLogOnlySelected(bool),
     ClearLog,
@@ -181,7 +199,7 @@ pub enum Message {
     OpenFolderPicker,
     FolderPicked(Option<PathBuf>),
     OpenCoverPicker(usize),
-    CoverPicked(usize, Option<PathBuf>),
+    CoverPicked(u64, Option<PathBuf>),
     OpenUrl(String),
     CheckUpdate(bool),
     UpdateChecked(bool, Result<Option<tagjoe_core::update::Release>, String>),
@@ -221,7 +239,7 @@ fn boot() -> (App, Task<Message>) {
     let cfg = Config::load();
     tagjoe_core::i18n::init_from_env(&cfg.language);
     let panes = pane_grid::State::with_configuration(pane_grid::Configuration::Split { axis: pane_grid::Axis::Horizontal, ratio: 0.5, a: Box::new(pane_grid::Configuration::Pane(Pane::Files)), b: Box::new(pane_grid::Configuration::Pane(Pane::Fields)) });
-    let app = App { cfg: Arc::new(cfg), theme: if a.theme.as_deref() == Some("dark") { theme::dark() } else { theme::light() }, jobs: vec![], selected: None, path_input: String::new(), status: i18n::t("Drop a folder onto the window or enter a path."), settings: None, offline: a.offline, last_journal: work::last_journal(), panes, log: load_log(), log_open: false, log_only_selected: false, update: None, scan_progress: None };
+    let app = App { cfg: Arc::new(cfg), theme: if a.theme.as_deref() == Some("dark") { theme::dark() } else { theme::light() }, jobs: vec![], selected: None, path_input: String::new(), status: i18n::t("Drop a folder onto the window or enter a path."), settings: None, offline: a.offline, last_journal: work::last_journal(), panes, log: load_log(), log_open: false, log_only_selected: false, update: None, scan_progress: None, next_id: 1 };
     let mut tasks = Vec::new();
     // automatic check: only when switched on, at most once a day
     if app.cfg.update_check && tagjoe_core::update::now().saturating_sub(app.cfg.update_last_check) >= tagjoe_core::update::CHECK_INTERVAL_SECS {
@@ -275,8 +293,8 @@ fn cover_handle(src: &CoverSource) -> Option<image::Handle> {
 }
 
 impl Job {
-    fn new(unit: Arc<Unit>) -> Self {
-        Job { unit, state: JobState::Scanning, candidates: vec![], chosen: None, plan: None, selected_file: 0, album_overrides: BTreeMap::new(), file_overrides: BTreeMap::new(), cover_override: None, cover_handle: None, notes: vec![], errors: vec![], pending: None, cover_input: String::new(), result: None, rename_off: BTreeSet::new(), skipped: BTreeSet::new(), skipped_removals: BTreeSet::new(), cover_off: BTreeSet::new(), cover_all: true, delete_off: BTreeSet::new(), progress: None }
+    fn new(id: u64, unit: Arc<Unit>) -> Self {
+        Job { id, unit, state: JobState::Scanning, candidates: vec![], chosen: None, plan: None, selected_file: 0, album_overrides: BTreeMap::new(), file_overrides: BTreeMap::new(), cover_override: None, cover_handle: None, embedded_cover: None, search_input: String::new(), notes: vec![], errors: vec![], pending: None, cover_input: String::new(), result: None, rename_off: BTreeSet::new(), skipped: BTreeSet::new(), skipped_removals: BTreeSet::new(), cover_off: BTreeSet::new(), cover_all: true, delete_off: BTreeSet::new(), progress: None }
     }
 
     /// Reference data + matching for the current choice (candidate or tags/offline).
@@ -443,7 +461,9 @@ fn update(app: &mut App, msg: Message) -> Task<Message> {
                 app.status = format!("{}: {}", i18n::t("Already in the queue"), unit.path.display());
                 return Task::none();
             }
-            let mut job = Job::new(unit.clone());
+            let id = app.next_id;
+            app.next_id += 1;
+            let mut job = Job::new(id, unit.clone());
             job.rebuild(&app.cfg);
             job.state = if app.offline { JobState::Ready } else { JobState::Identifying(i18n::t("starting")) };
             app.jobs.push(job);
@@ -452,18 +472,54 @@ fn update(app: &mut App, msg: Message) -> Task<Message> {
                 app.selected = Some(idx);
             }
             app.status = format!("{}: {}", i18n::t("Added"), unit.name());
+            let mut tasks = Vec::new();
+            if let Some(f) = unit.files.iter().find(|f| f.has_cover()) {
+                tasks.push(work::embedded_cover_task(id, f.path.clone()));
+            }
             if !app.offline {
-                return work::identify_task(idx, unit, app.cfg.clone(), false);
+                tasks.push(work::identify_task(id, unit, app.cfg.clone(), false, None));
+            }
+            return Task::batch(tasks);
+        }
+        Message::EmbeddedCover(id, bytes) => {
+            if let Some(j) = app.job_index(id).and_then(|i| app.jobs.get_mut(i)) {
+                j.embedded_cover = bytes.map(image::Handle::from_bytes);
             }
         }
-        Message::Progress(job, s) => {
+        Message::Reidentify(idx) => {
+            if let Some(j) = app.jobs.get_mut(idx) {
+                if matches!(j.state, JobState::Applying | JobState::Waiting) {
+                    return Task::none();
+                }
+                j.state = JobState::Identifying(i18n::t("starting"));
+                return work::identify_task(j.id, j.unit.clone(), app.cfg.clone(), app.offline, None);
+            }
+        }
+        Message::SearchInput(idx, s) => {
+            if let Some(j) = app.jobs.get_mut(idx) {
+                j.search_input = s;
+            }
+        }
+        Message::SearchRun(idx) => {
+            if let Some(j) = app.jobs.get_mut(idx) {
+                let q = j.search_input.trim().to_string();
+                if q.is_empty() || matches!(j.state, JobState::Applying | JobState::Waiting) {
+                    return Task::none();
+                }
+                j.state = JobState::Identifying(i18n::t("searching"));
+                return work::identify_task(j.id, j.unit.clone(), app.cfg.clone(), app.offline, Some(q));
+            }
+        }
+        Message::Progress(id, s) => {
+            let Some(job) = app.job_index(id) else { return Task::none() };
             if let Some(j) = app.jobs.get_mut(job) {
                 if matches!(j.state, JobState::Identifying(_)) {
                     j.state = JobState::Identifying(s);
                 }
             }
         }
-        Message::Identified(job, result) => {
+        Message::Identified(id, result) => {
+            let Some(job) = app.job_index(id) else { return Task::none() };
             if let Some(j) = app.jobs.get_mut(job) {
                 match result {
                     Ok(cands) => {
@@ -581,7 +637,8 @@ fn update(app: &mut App, msg: Message) -> Task<Message> {
             let _ = tagjoe_core::log::clear();
             app.log.clear();
         }
-        Message::ApplyProgress(job, p) => {
+        Message::ApplyProgress(id, p) => {
+            let Some(job) = app.job_index(id) else { return Task::none() };
             let unit = app.jobs.get(job).map(|j| j.unit.path.display().to_string()).unwrap_or_default();
             let name = p.path.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
             if !p.finished {
@@ -639,9 +696,11 @@ fn update(app: &mut App, msg: Message) -> Task<Message> {
         Message::OpenCoverPicker(job) => {
             let start = app.jobs.get(job).map(|j| j.unit.path.clone());
             app.status = i18n::t("Choose a cover image in the system dialog…");
-            return work::pick_image_task(job, start);
+            let Some(id) = app.jobs.get(job).map(|j| j.id) else { return Task::none() };
+            return work::pick_image_task(id, start);
         }
-        Message::CoverPicked(job, Some(file)) => {
+        Message::CoverPicked(id, Some(file)) => {
+            let Some(job) = app.job_index(id) else { return Task::none() };
             if let Some(j) = app.jobs.get_mut(job) {
                 j.cover_override = Some(CoverSource::File { path: file });
                 j.cover_off.clear();
@@ -676,7 +735,8 @@ fn update(app: &mut App, msg: Message) -> Task<Message> {
             if let Some(j) = app.jobs.get_mut(job) {
                 let s = j.cover_input.trim().to_string();
                 if s.starts_with("http://") || s.starts_with("https://") {
-                    return work::fetch_url_task(job, s, app.cfg.clone());
+                    let id = app.jobs[job].id;
+                    return work::fetch_url_task(id, s, app.cfg.clone());
                 }
                 let p = PathBuf::from(&s);
                 if p.is_file() {
@@ -688,7 +748,8 @@ fn update(app: &mut App, msg: Message) -> Task<Message> {
                 }
             }
         }
-        Message::CoverFetched(job, r) => {
+        Message::CoverFetched(id, r) => {
+            let Some(job) = app.job_index(id) else { return Task::none() };
             if let Some(j) = app.jobs.get_mut(job) {
                 match r {
                     Ok(bytes) => {
@@ -732,7 +793,8 @@ fn update(app: &mut App, msg: Message) -> Task<Message> {
                 }
             }
         }
-        Message::Applied(job, result) => {
+        Message::Applied(id, result) => {
+            let Some(job) = app.job_index(id) else { return Task::none() };
             app.last_journal = work::last_journal();
             let unit = app.jobs.get(job).map(|j| j.unit.path.display().to_string()).unwrap_or_default();
             if let Some((from, to)) = &result.folder {
@@ -930,7 +992,8 @@ fn start_apply(app: &mut App, job: usize, plan: Plan) -> Task<Message> {
     let unit = j.unit.path.display().to_string();
     app.status = format!("{} 0 {} {total}", i18n::t("Writing"), i18n::t("of"));
     app.log(&unit, "", &format!("{} · {total} {}", i18n::t("run started"), i18n::t("steps")), true);
-    work::apply_task(job, plan, app.cfg.clone())
+    let id = app.jobs[job].id;
+    work::apply_task(id, plan, app.cfg.clone())
 }
 
 /// Open a web address in the system browser (no extra dependency).

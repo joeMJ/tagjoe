@@ -44,7 +44,7 @@ pub fn scan_task(path: PathBuf) -> Task<Message> {
 }
 
 /// Identify a unit online (music or audiobook); fetches covers for the candidates.
-pub fn identify_task(job: usize, unit: Arc<Unit>, cfg: Arc<Config>, offline: bool) -> Task<Message> {
+pub fn identify_task(job: u64, unit: Arc<Unit>, cfg: Arc<Config>, offline: bool, query: Option<String>) -> Task<Message> {
     let (tx, rx) = mpsc::unbounded::<Message>();
     std::thread::spawn(move || {
         let mut http = http(&cfg);
@@ -55,6 +55,8 @@ pub fn identify_task(job: usize, unit: Arc<Unit>, cfg: Arc<Config>, offline: boo
         };
         let result: Result<Vec<Identified>, String> = if offline {
             Ok(vec![])
+        } else if let Some(q) = query {
+            Identifier { http: &http, cfg: &cfg }.search_query(&unit, &q, 3, &progress).map_err(|e| e.to_string())
         } else if unit.kind == Kind::Audiobook {
             BookIdentifier { http: &http, cfg: &cfg }.identify(&unit, 3, &progress).map_err(|e| e.to_string())
         } else {
@@ -75,7 +77,7 @@ pub fn identify_task(job: usize, unit: Arc<Unit>, cfg: Arc<Config>, offline: boo
 }
 
 /// Apply a plan on a thread; one `ApplyProgress` per written or deleted file, then `Applied`.
-pub fn apply_task(job: usize, plan: Plan, cfg: Arc<Config>) -> Task<Message> {
+pub fn apply_task(job: u64, plan: Plan, cfg: Arc<Config>) -> Task<Message> {
     let (tx, rx) = mpsc::unbounded::<Message>();
     std::thread::spawn(move || {
         let ptx = tx.clone();
@@ -111,7 +113,7 @@ pub fn undo_task(cfg: Arc<Config>) -> Task<Message> {
 }
 
 /// Fetch cover bytes from a URL (manual cover entry).
-pub fn fetch_url_task(job: usize, url: String, cfg: Arc<Config>) -> Task<Message> {
+pub fn fetch_url_task(job: u64, url: String, cfg: Arc<Config>) -> Task<Message> {
     Task::perform(
         async move {
             let (tx, rx) = iced::futures::channel::oneshot::channel::<Result<Vec<u8>, String>>();
@@ -147,7 +149,7 @@ pub fn pick_folder_task(start: Option<PathBuf>) -> Task<Message> {
 }
 
 /// Native file dialog for a cover image.
-pub fn pick_image_task(job: usize, start: Option<PathBuf>) -> Task<Message> {
+pub fn pick_image_task(job: u64, start: Option<PathBuf>) -> Task<Message> {
     Task::perform(
         async move {
             let mut d = rfd::AsyncFileDialog::new().set_title("tagjoe – choose a cover image").add_filter("Images", &["jpg", "jpeg", "png"]);
@@ -200,5 +202,19 @@ pub fn fpcalc_download_task() -> Task<Message> {
             rx.await.unwrap_or_else(|_| Err("download thread failed".into()))
         },
         Message::FpcalcDownloaded,
+    )
+}
+
+/// Read the cover embedded in one file (shown while no new cover is proposed).
+pub fn embedded_cover_task(job: u64, path: PathBuf) -> Task<Message> {
+    Task::perform(
+        async move {
+            let (tx, rx) = iced::futures::channel::oneshot::channel();
+            std::thread::spawn(move || {
+                let _ = tx.send(scan::embedded_cover(&path));
+            });
+            rx.await.unwrap_or(None)
+        },
+        move |b| Message::EmbeddedCover(job, b),
     )
 }

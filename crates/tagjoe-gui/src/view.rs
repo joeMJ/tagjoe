@@ -103,16 +103,17 @@ struct RemovalRow {
 }
 
 fn release_card<'a>(app: &'a App, job_idx: usize, job: &'a Job) -> Element<'a, Message> {
-    let cover: Element<'a, Message> = match &job.cover_handle {
+    let cover: Element<'a, Message> = match job.cover_handle.as_ref().or(job.embedded_cover.as_ref()) {
         Some(h) => container(image(h.clone()).width(96).height(96).content_fit(iced::ContentFit::Contain)).width(96).height(96).into(),
-        None => container(text(t("no cover")).size(11).style(th::dim)).width(96).height(96).center(iced::Length::Fill).style(th::drop_zone).into(),
+        None => container(text(t("no cover")).size(11).style(th::dim)).center(96).style(th::drop_zone).into(),
     };
     let (title, line1, line2) = match job.chosen.and_then(|i| job.candidates.get(i)) {
         Some(c) => {
             let a = &c.release.album;
             let title = a.get(&Field::Album).cloned().unwrap_or_default();
             let line1 = [a.get(&Field::AlbumArtist).cloned().unwrap_or_default(), a.get(&Field::Date).map(|d| d.chars().take(4).collect()).unwrap_or_default(), a.get(&Field::Label).or(a.get(&Field::Publisher)).cloned().unwrap_or_default(), a.get(&Field::CatalogNumber).cloned().unwrap_or_default(), format!("{} {}", c.release.tracks.len(), t("tracks"))].into_iter().filter(|s| !s.is_empty()).collect::<Vec<_>>().join(" · ");
-            let line2 = format!("{} {} · {} {} % · {} {}, {} {}", t("Source"), c.release.source, t("match"), c.release.score, c.by_fingerprint, t("by fingerprint"), c.by_heuristic, t("by duration and title"));
+            let by_id = c.matched.iter().filter(|m| m.is_some()).count().saturating_sub(c.by_fingerprint + c.by_heuristic);
+            let line2 = format!("{} {} · {} {} % · {} {}, {} {}, {} {}", t("Source"), c.release.source, t("match"), c.release.score, c.by_fingerprint, t("by fingerprint"), by_id, t("by MusicBrainz id in the tags"), c.by_heuristic, t("by duration and title"));
             (title, line1, line2)
         }
         None => {
@@ -135,6 +136,13 @@ fn release_card<'a>(app: &'a App, job_idx: usize, job: &'a Job) -> Element<'a, M
     }
     cands = cands.push(button(text(t("tags only")).size(12)).on_press(Message::ChooseCandidate(job_idx, usize::MAX)).style(th::list_button(job.chosen.is_none())).padding([4, 8]));
     let cands = cands.wrap();
+    let busy = matches!(job.state, JobState::Identifying(_) | JobState::Applying | JobState::Waiting);
+    let search = row![
+        text_input(&t("Search release: artist album"), &job.search_input).on_input(move |s| Message::SearchInput(job_idx, s)).on_submit(Message::SearchRun(job_idx)).size(12).padding(5).width(Length::Fixed(320.0)),
+        button(text(t("Search")).size(12)).on_press_maybe((!busy && !job.search_input.trim().is_empty()).then_some(Message::SearchRun(job_idx))).padding([5, 8]).style(button::secondary),
+        button(text(t("Identify again")).size(12)).on_press_maybe((!busy).then_some(Message::Reidentify(job_idx))).padding([5, 8]).style(button::secondary),
+    ]
+    .spacing(6);
     let (complete, incomplete, foreign, no_cover, renames) = job.summary();
     let all_renames_on = job.rename_off.is_empty();
     let rename_all = checkbox(all_renames_on).label(t("Rename files")).on_toggle(move |b| Message::ToggleRenameAll(job_idx, b)).size(16).text_size(12);
@@ -176,7 +184,7 @@ fn release_card<'a>(app: &'a App, job_idx: usize, job: &'a Job) -> Element<'a, M
     .spacing(4)
     .align_y(iced::Center)
     .wrap();
-    let info = column![text(title).size(16), text(line1).size(13).style(th::dim), text(line2).size(12).style(th::dim), cover_line, cands, cover_tools].spacing(4);
+    let info = column![text(title).size(16), text(line1).size(13).style(th::dim), text(line2).size(12).style(th::dim), cover_line, cands, search, cover_tools].spacing(4);
     let mut notes = column![].spacing(2);
     for e in &job.errors {
         notes = notes.push(text(format!("{} {e}", t("Error:"))).size(11).style(th::err));

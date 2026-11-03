@@ -183,6 +183,10 @@ pub fn key_name(key: ItemKey, tag_type: TagType) -> Option<String> {
     if tag_type == TagType::Id3v2 && name.len() != 4 && !name.contains(':') {
         return Some(format!("TXXX:{name}"));
     }
+    // the MusicBrainz recording id lives in a UFID frame owned by musicbrainz.org (Picard, lofty)
+    if tag_type == TagType::Id3v2 && name == "UFID" {
+        return Some("UFID:http://musicbrainz.org".into());
+    }
     Some(name.to_string())
 }
 
@@ -249,6 +253,22 @@ fn read_container(c: &Container, out: &mut FileInfo) {
             bytes: pic.data().len(),
         });
     }
+}
+
+/// Bytes of the embedded front cover of one file (first picture of the primary container).
+pub fn embedded_cover(path: &Path) -> Option<Vec<u8>> {
+    let loaded = containers::load(path).ok()?;
+    let primary = primary_tag_type(loaded.file_type);
+    let mut containers: Vec<&Container> = loaded.containers.iter().collect();
+    containers.sort_by_key(|c| if c.tag_type() == primary { 0 } else { 1 });
+    for c in containers {
+        let g = c.to_generic();
+        let pics = g.pictures();
+        if let Some(p) = pics.iter().find(|p| matches!(p.pic_type(), lofty::picture::PictureType::CoverFront)).or(pics.first()) {
+            return Some(p.data().to_vec());
+        }
+    }
+    None
 }
 
 pub fn image_dimensions(data: &[u8]) -> (u32, u32) {
@@ -426,6 +446,12 @@ mod tests {
         for n in ["CDs", "Disco", "1", "cd"] {
             assert!(!is_disc_folder(n), "{n}");
         }
+    }
+    #[test]
+    fn ufid_is_the_recording_id() {
+        use lofty::tag::{ItemKey, TagType};
+        assert_eq!(key_name(ItemKey::MusicBrainzRecordingId, TagType::Id3v2).as_deref(), Some("UFID:http://musicbrainz.org"));
+        assert_eq!(key_name(ItemKey::Barcode, TagType::Id3v2).as_deref(), Some("TXXX:BARCODE"));
     }
     #[test]
     fn extensions() {

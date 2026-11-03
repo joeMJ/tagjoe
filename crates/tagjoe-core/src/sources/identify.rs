@@ -292,6 +292,47 @@ impl Identifier<'_> {
         Ok(out)
     }
 
+    /// Candidates for a free-text query typed by the user ("artist album"); MusicBrainz only.
+    pub fn search_query(&self, unit: &Unit, query: &str, max_candidates: usize, progress: Progress<'_>) -> Result<Vec<Identified>> {
+        let mut notes = vec![format!("search: \"{}\"", query.trim())];
+        if !self.cfg.sources.musicbrainz_enabled || self.http.offline {
+            notes.push("MusicBrainz is off".into());
+            return Ok(vec![]);
+        }
+        let mb = MusicBrainz { http: self.http, base: &self.cfg.sources.musicbrainz_url };
+        let q = query.trim().replace('"', "");
+        if q.is_empty() {
+            return Ok(vec![]);
+        }
+        // plain words across release and artist, the way the MusicBrainz search box works
+        let url = format!("{}/release/?query={}&fmt=json&limit=8", mb.base, super::http::enc(&q));
+        let hits = super::musicbrainz::parse_search(&self.http.get_json(&url, &[])?);
+        let n = unit.files.len();
+        let rec_hits: Vec<Vec<String>> = vec![vec![]; n];
+        let mut out = Vec::new();
+        let total = hits.len().min(max_candidates.max(1) * 2);
+        for (i, c) in hits.iter().take(total).enumerate() {
+            progress("musicbrainz", i + 1, total);
+            match mb.release(&c.id) {
+                Ok(mut release) => {
+                    let (matched, by_fp, by_heur) = match_tracks(unit, &release, &rec_hits);
+                    release.score = score_candidate(unit, &release, &matched, by_fp);
+                    out.push(Identified { release, matched, by_fingerprint: by_fp, by_heuristic: by_heur, notes: vec![] });
+                }
+                Err(e) => notes.push(format!("MusicBrainz release {}: {}", c.id, e.short())),
+            }
+        }
+        out.sort_by_key(|c| std::cmp::Reverse(c.release.score));
+        out.truncate(max_candidates.max(1));
+        if out.is_empty() {
+            notes.push("no release found for the query".into());
+        }
+        if let Some(first) = out.first_mut() {
+            first.notes = notes;
+        }
+        Ok(out)
+    }
+
     /// Attach cover bytes: resolve a `CoverSource::Url`, or fetch the Cover Art Archive front.
     pub fn fetch_cover(&self, release: &mut ReleaseInfo) -> Result<bool> {
         if let Some(CoverSource::Url { url }) = release.cover.clone() {
