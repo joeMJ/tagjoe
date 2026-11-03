@@ -2,7 +2,7 @@
 
 use crate::i18n::t;
 use crate::theme as th;
-use crate::{App, CoverOrigin, Job, JobState, Message, Pane};
+use crate::{App, CoverOrigin, Job, JobState, Message, Pane, UpdateState};
 use iced::widget::{button, checkbox, column, container, image, pane_grid, progress_bar, row, rule, scrollable, space, text, text_input, toggler};
 use iced::{Element, Fill, FillPortion, Length, Theme};
 use tagjoe_core::model::{Field, Kind};
@@ -101,7 +101,7 @@ struct RemovalRow {
     apply: bool,
 }
 
-fn release_card<'a>(job_idx: usize, job: &'a Job) -> Element<'a, Message> {
+fn release_card<'a>(app: &'a App, job_idx: usize, job: &'a Job) -> Element<'a, Message> {
     let cover: Element<'a, Message> = match &job.cover_handle {
         Some(h) => container(image(h.clone()).width(96).height(96).content_fit(iced::ContentFit::Contain)).width(96).height(96).into(),
         None => container(text(t("no cover")).size(11).style(th::dim)).width(96).height(96).center(iced::Length::Fill).style(th::drop_zone).into(),
@@ -116,7 +116,15 @@ fn release_card<'a>(job_idx: usize, job: &'a Job) -> Element<'a, Message> {
         }
         None => {
             let (rel, _) = job.reference(&tagjoe_core::Config::default());
-            (rel.album.get(&Field::Album).cloned().unwrap_or_default(), rel.summary.clone(), if job.candidates.is_empty() { t("No source match – values from tags and folder names; complete the fields manually.") } else { t("Candidates below the threshold – pick one or complete manually.") })
+            let sources_on = if job.unit.kind == Kind::Audiobook { app.cfg.sources.book_enabled() } else { app.cfg.sources.music_enabled() };
+            let line2 = if !sources_on {
+                t("All online sources are off – switch on sources under Settings → Sources to identify releases, covers and audiobooks. Values below come from tags and folder names.")
+            } else if job.candidates.is_empty() {
+                t("No source match – values from tags and folder names; complete the fields manually.")
+            } else {
+                t("Candidates below the threshold – pick one or complete manually.")
+            };
+            (rel.album.get(&Field::Album).cloned().unwrap_or_default(), rel.summary.clone(), line2)
         }
     };
     let mut cands = row![].spacing(6);
@@ -415,16 +423,65 @@ pub fn main(app: &App) -> Element<'_, Message> {
             .spacing(10)
             .on_resize(8, Message::PaneResized)
             .height(Fill);
-            column![bar, release_card(i, j), split].spacing(10).padding(10).into()
+            column![bar, release_card(app, i, j), split].spacing(10).padding(10).into()
         }
         None => container(column![text(t("Drop a folder (album, compilation or audiobook) onto the window.")).size(16), text(t("tagjoe reads every file, checks each tag field, proposes tags, cover and file names – nothing is written until you click Apply.")).size(13).style(th::dim)].spacing(8).align_x(iced::Center)).center(Fill).into(),
     };
     let body = row![sidebar(app), container(main).width(Fill).height(Fill)].height(Fill);
-    let mut col = column![header(app), body];
+    let mut col = column![header(app)];
+    if let Some(u) = &app.update {
+        col = col.push(update_banner(u));
+    }
+    col = col.push(body);
     if app.log_open {
         col = col.push(log_panel(app));
     }
     col.push(footer(app, job.map(|(i, _)| i), job.map(|(_, j)| j))).into()
+}
+
+/// Update banner under the header: offer, download, verified package, errors.
+fn update_banner(u: &UpdateState) -> Element<'_, Message> {
+    use tagjoe_core::update::{install_command, release_notes};
+    let installed = format!("{} {}", t("Installed:"), tagjoe_core::VERSION);
+    let later = button(text(t("Later")).size(12)).on_press(Message::UpdateDismiss).style(button::secondary).padding([4, 8]);
+    let content: Element<'_, Message> = match u {
+        UpdateState::Checking => text(t("Asking GitHub for the latest release…")).size(13).into(),
+        UpdateState::UpToDate => row![text(format!("{} · {installed}", t("No newer version."))).size(13).width(Fill), later].align_y(iced::Center).into(),
+        UpdateState::Failed(e) => row![text(format!("{}: {e}", t("Update failed"))).size(13).style(th::err).width(Fill), later].align_y(iced::Center).into(),
+        UpdateState::Offered(rel) => {
+            let mut notes = column![].spacing(2);
+            for l in release_notes(rel.body.as_deref().unwrap_or_default(), tagjoe_core::i18n::lang() != "de").into_iter().take(8) {
+                notes = notes.push(text(l).size(12).style(th::dim));
+            }
+            column![
+                row![
+                    text(format!("tagjoe {} {} · {installed}", rel.tag_name, t("is available"))).size(14).width(Fill),
+                    button(text(t("Download and verify")).size(12)).on_press(Message::UpdateDownload).style(button::primary).padding([4, 8]),
+                    button(text(t("Release page")).size(12)).on_press(Message::OpenUrl(rel.html_url.clone())).style(button::secondary).padding([4, 8]),
+                    later,
+                ]
+                .spacing(8)
+                .align_y(iced::Center),
+                notes,
+            ]
+            .spacing(4)
+            .into()
+        }
+        UpdateState::Downloading(rel) => text(format!("{} tagjoe {}…", t("Downloading and checking the SHA-256 sum of"), rel.tag_name)).size(13).into(),
+        UpdateState::Ready(rel, path) => column![
+            row![
+                text(format!("tagjoe {} {}", rel.tag_name, t("downloaded, checksum verified. Install with:"))).size(13).width(Fill),
+                button(text(t("Install")).size(12)).on_press(Message::UpdateInstall).style(button::primary).padding([4, 8]),
+                later,
+            ]
+            .spacing(8)
+            .align_y(iced::Center),
+            text(install_command(path).join(" ")).size(12).font(iced::Font::MONOSPACE).style(th::dim),
+        ]
+        .spacing(4)
+        .into(),
+    };
+    container(content).padding([8, 12]).width(Fill).style(th::header_bar).into()
 }
 
 /// Collapsible activity log above the footer: newest first, this session plus log.txt.

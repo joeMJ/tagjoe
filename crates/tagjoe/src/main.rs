@@ -43,6 +43,8 @@ struct Cli {
 enum Cmd {
     /// Read a folder and report every file and tag field (ok / missing / foreign)
     Scan { folder: PathBuf },
+    /// Ask GitHub for a newer release (sends the IP address and the program id to GitHub)
+    UpdateCheck,
     /// Build the change plan (tags, cover, names) without writing anything
     Propose { folder: PathBuf },
     /// Remove foreign fields and secondary containers only (no renaming, no source lookup)
@@ -413,6 +415,20 @@ fn main() -> ExitCode {
             }
         }),
         Cmd::Identify { folder } => cmd_identify(folder, &cfg, cli.kind.as_ref(), cli.json),
+        Cmd::UpdateCheck => match tagjoe_core::update::check() {
+            Ok(Some(r)) => {
+                outln!("tagjoe {} is available (installed: {}): {}", r.tag_name, tagjoe_core::VERSION, r.html_url);
+                for l in tagjoe_core::update::release_notes(r.body.as_deref().unwrap_or_default(), true) {
+                    outln!("   {l}");
+                }
+                Ok(())
+            }
+            Ok(None) => {
+                outln!("no newer version (installed: {})", tagjoe_core::VERSION);
+                Ok(())
+            }
+            Err(e) => Err(e),
+        },
         Cmd::Clean { folder, yes } => build_plans(folder, &cfg, cli.kind.as_ref(), true).and_then(|plans| cmd_apply(plans, &cfg, *yes, true)),
         Cmd::Apply { folder, yes } => build_plans(folder, &cfg, cli.kind.as_ref(), cli.offline).and_then(|plans| cmd_apply(plans, &cfg, *yes, false)),
         Cmd::Undo { journal, list } => cmd_undo(journal.as_ref(), *list, &cfg),

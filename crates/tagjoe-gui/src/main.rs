@@ -103,6 +103,20 @@ pub struct App {
     /// Activity log, newest first (this session plus the tail of log.txt).
     pub log: Vec<LogLine>,
     pub log_open: bool,
+    /// Update banner state.
+    pub update: Option<UpdateState>,
+}
+
+#[derive(Debug, Clone)]
+pub enum UpdateState {
+    Checking,
+    Offered(tagjoe_core::update::Release),
+    Downloading(tagjoe_core::update::Release),
+    /// Verified package, ready to install with the shown command.
+    Ready(tagjoe_core::update::Release, PathBuf),
+    Failed(String),
+    /// Manual check without a newer version.
+    UpToDate,
 }
 
 #[derive(Debug, Clone)]
@@ -151,6 +165,12 @@ pub enum Message {
     OpenCoverPicker(usize),
     CoverPicked(usize, Option<PathBuf>),
     OpenUrl(String),
+    CheckUpdate(bool),
+    UpdateChecked(bool, Result<Option<tagjoe_core::update::Release>, String>),
+    UpdateDownload,
+    UpdateDownloaded(Result<PathBuf, String>),
+    UpdateInstall,
+    UpdateDismiss,
 }
 
 /// Command line: `tagjoe-gui [--theme light|dark] [--offline] [FOLDER…]`
@@ -182,8 +202,12 @@ fn boot() -> (App, Task<Message>) {
     let cfg = Config::load();
     tagjoe_core::i18n::init_from_env(&cfg.language);
     let panes = pane_grid::State::with_configuration(pane_grid::Configuration::Split { axis: pane_grid::Axis::Horizontal, ratio: 0.5, a: Box::new(pane_grid::Configuration::Pane(Pane::Files)), b: Box::new(pane_grid::Configuration::Pane(Pane::Fields)) });
-    let app = App { cfg: Arc::new(cfg), theme: if a.theme.as_deref() == Some("dark") { theme::dark() } else { theme::light() }, jobs: vec![], selected: None, path_input: String::new(), status: i18n::t("Drop a folder onto the window or enter a path."), settings: None, offline: a.offline, last_journal: work::last_journal(), panes, log: load_log(), log_open: false };
+    let app = App { cfg: Arc::new(cfg), theme: if a.theme.as_deref() == Some("dark") { theme::dark() } else { theme::light() }, jobs: vec![], selected: None, path_input: String::new(), status: i18n::t("Drop a folder onto the window or enter a path."), settings: None, offline: a.offline, last_journal: work::last_journal(), panes, log: load_log(), log_open: false, update: None };
     let mut tasks = Vec::new();
+    // automatic check: only when switched on, at most once a day
+    if app.cfg.update_check && tagjoe_core::update::now().saturating_sub(app.cfg.update_last_check) >= tagjoe_core::update::CHECK_INTERVAL_SECS {
+        tasks.push(work::update_check_task(false));
+    }
     if a.theme.is_none() {
         tasks.push(iced::system::theme().map(Message::SystemTheme));
     }
@@ -730,6 +754,7 @@ fn update(app: &mut App, msg: Message) -> Task<Message> {
         }
         Message::Settings(m) => {
             let mut close = false;
+            let mut check = false;
             let mut save: Option<Config> = None;
             if let Some(s) = app.settings.as_mut() {
                 match s.update(m) {
@@ -738,6 +763,11 @@ fn update(app: &mut App, msg: Message) -> Task<Message> {
                     settings::Outcome::Save(cfg) => {
                         save = Some(*cfg);
                         close = true;
+                    }
+                    settings::Outcome::CheckUpdate(cfg) => {
+                        save = Some(*cfg);
+                        close = true;
+                        check = true;
                     }
                 }
             }
@@ -756,7 +786,69 @@ fn update(app: &mut App, msg: Message) -> Task<Message> {
             if close {
                 app.settings = None;
             }
+            if check {
+                return update(app, Message::CheckUpdate(true));
+            }
         }
+        Message::CheckUpdate(manual) => {
+            app.update = Some(UpdateState::Checking);
+            app.status = i18n::t("Asking GitHub for the latest release…");
+            return work::update_check_task(manual);
+        }
+        Message::UpdateChecked(manual, r) => {
+            let mut cfg = (*app.cfg).clone();
+            cfg.update_last_check = tagjoe_core::update::now();
+            let _ = cfg.save();
+            app.cfg = Arc::new(cfg);
+            app.update = match r {
+                Ok(Some(rel)) => {
+                    app.status = format!("{} {}", i18n::t("Update available:"), rel.tag_name);
+                    Some(UpdateState::Offered(rel))
+                }
+                Ok(None) => {
+                    app.status = format!("{} {}", i18n::t("No newer version. Installed:"), tagjoe_core::VERSION);
+                    if manual { Some(UpdateState::UpToDate) } else { None }
+                }
+                Err(e) => {
+                    app.status = format!("{}: {e}", i18n::t("Update check failed"));
+                    if manual { Some(UpdateState::Failed(e)) } else { None }
+                }
+            };
+        }
+        Message::UpdateDownload => {
+            if let Some(UpdateState::Offered(rel)) = app.update.clone() {
+                app.update = Some(UpdateState::Downloading(rel.clone()));
+                app.status = i18n::t("Downloading the package and checking its SHA-256 sum…");
+                return work::update_download_task(rel);
+            }
+        }
+        Message::UpdateDownloaded(r) => {
+            if let Some(UpdateState::Downloading(rel)) = app.update.clone() {
+                app.update = Some(match r {
+                    Ok(p) => {
+                        app.status = i18n::t("Package verified.");
+                        UpdateState::Ready(rel, p)
+                    }
+                    Err(e) => {
+                        app.status = format!("{}: {e}", i18n::t("Download failed"));
+                        UpdateState::Failed(e)
+                    }
+                });
+            }
+        }
+        Message::UpdateInstall => {
+            if let Some(UpdateState::Ready(_, p)) = app.update.clone() {
+                let cmd = tagjoe_core::update::install_command(&p);
+                match std::process::Command::new(&cmd[0]).args(&cmd[1..]).spawn() {
+                    Ok(_) => {
+                        app.status = i18n::t("Installer started – the system asks for your password. Restart tagjoe afterwards.");
+                        app.update = None;
+                    }
+                    Err(e) => app.status = format!("{}: {e}", i18n::t("Cannot start the installer")),
+                }
+            }
+        }
+        Message::UpdateDismiss => app.update = None,
         Message::Status(s) => app.status = s,
         Message::ToggleOffline(b) => app.offline = b,
     }
@@ -789,6 +881,14 @@ fn main() -> iced::Result {
         .title(|_: &App| i18n::t("tagjoe"))
         .theme(|app: &App| Some(app.theme.clone()))
         .subscription(subscription)
-        .window(window::Settings { size: iced::Size::new(1280.0, 860.0), min_size: Some(iced::Size::new(900.0, 600.0)), ..Default::default() })
+        .window(window::Settings {
+            size: iced::Size::new(1280.0, 860.0),
+            min_size: Some(iced::Size::new(900.0, 600.0)),
+            // X11/Windows: window icon; Wayland: the application id matches the .desktop file,
+            // so the desktop shows the installed icon.
+            icon: window::icon::from_file_data(include_bytes!("../../../data/icons/io.github.joeMJ.tagjoe-256.png"), None).ok(),
+            platform_specific: window::settings::PlatformSpecific { application_id: "io.github.joeMJ.tagjoe".into(), ..Default::default() },
+            ..Default::default()
+        })
         .run()
 }

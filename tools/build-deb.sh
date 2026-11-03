@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Baut ein .deb (Vorbild: tvjoe/tools/build-deb.sh). Binärdateien sind an die glibc der
 # Bauumgebung gebunden: auf Debian 12 gebaut laufen sie auf Debian 12/13 und Ubuntu 24.04/26.04.
-# Ergebnis: target/deb/tagjoe_<version>_<distro>_<arch>.deb und target/deb/SHA256SUMS
+# Ergebnis: lokal/release/tagjoe_<version>_<arch>.deb und SHA256SUMS (ein Paket für alle
+# Debian-/Ubuntu-Versionen; Ausgabeordner über TAGJOE_OUT änderbar).
 set -euo pipefail
 umask 022
 dir="$(cd "$(dirname "$0")/.." && pwd)"
@@ -9,8 +10,6 @@ cd "$dir"
 [ -f "$HOME/.cargo/env" ] && . "$HOME/.cargo/env"
 
 version=$(grep -m1 '^version' Cargo.toml | cut -d'"' -f2)
-. /etc/os-release
-distro="${ID}${VERSION_ID}"
 arch=$(dpkg --print-architecture)
 
 cargo build --release --locked
@@ -21,8 +20,7 @@ chmod 755 "$stage"
 install -Dm755 target/release/tagjoe "$stage/usr/bin/tagjoe"
 install -Dm755 target/release/tagjoe-gui "$stage/usr/bin/tagjoe-gui"
 install -Dm644 data/io.github.joeMJ.tagjoe.desktop "$stage/usr/share/applications/io.github.joeMJ.tagjoe.desktop"
-install -Dm644 data/io.github.joeMJ.tagjoe.svg "$stage/usr/share/icons/hicolor/scalable/apps/io.github.joeMJ.tagjoe.svg"
-for s in 48 64 128 256 512; do
+for s in 16 24 32 48 64 128 256 512; do
     [ -f "data/icons/io.github.joeMJ.tagjoe-$s.png" ] && install -Dm644 "data/icons/io.github.joeMJ.tagjoe-$s.png" "$stage/usr/share/icons/hicolor/${s}x${s}/apps/io.github.joeMJ.tagjoe.png"
 done
 install -Dm644 LICENSE "$stage/usr/share/doc/tagjoe/copyright"
@@ -49,9 +47,9 @@ Description: Check and fix audio tags, covers and file names
  proposes tags, cover and file names and applies them with an undo journal.
 CTRL
 
-out=target/deb
+out=${TAGJOE_OUT:-lokal/release}
 mkdir -p "$out"
-deb="$out/tagjoe_${version}_${distro}_${arch}.deb"
+deb="$out/tagjoe_${version}_${arch}.deb"
 dpkg-deb --root-owner-group --build "$stage" "$deb" >/dev/null
 (cd "$out" && sha256sum tagjoe_*.deb > SHA256SUMS)
 echo "$deb"

@@ -9,7 +9,7 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
 #: crates/tagjoe-core/src/propose.rs:278 crates/tagjoe-gui/src/view.rs:54
-#: crates/tagjoe-gui/src/view.rs:165 crates/tagjoe-gui/src/view.rs:381
+#: crates/tagjoe-gui/src/view.rs:173 crates/tagjoe-gui/src/view.rs:389
 msgid "files"
 msgstr "Dateien"
 
@@ -21,240 +21,284 @@ msgstr "gelesen von"
 msgid "chapters"
 msgstr "Kapitel"
 
-#: crates/tagjoe-gui/src/main.rs:185
+#: crates/tagjoe-gui/src/main.rs:205
 msgid "Drop a folder onto the window or enter a path."
 msgstr "Ordner auf das Fenster ziehen oder Pfad eingeben."
 
-#: crates/tagjoe-gui/src/main.rs:374 crates/tagjoe-gui/src/main.rs:382
-#: crates/tagjoe-gui/src/main.rs:577
+#: crates/tagjoe-gui/src/main.rs:398 crates/tagjoe-gui/src/main.rs:406
+#: crates/tagjoe-gui/src/main.rs:601
 msgid "Scanning"
 msgstr "Lese"
 
-#: crates/tagjoe-gui/src/main.rs:377
+#: crates/tagjoe-gui/src/main.rs:401
 msgid "Not a folder."
 msgstr "Kein Ordner."
 
-#: crates/tagjoe-gui/src/main.rs:388
+#: crates/tagjoe-gui/src/main.rs:412
 msgid "Already in the queue"
 msgstr "Schon in der Warteschlange"
 
-#: crates/tagjoe-gui/src/main.rs:393
+#: crates/tagjoe-gui/src/main.rs:417
 msgid "starting"
 msgstr "startet"
 
-#: crates/tagjoe-gui/src/main.rs:399
+#: crates/tagjoe-gui/src/main.rs:423
 msgid "Added"
 msgstr "Hinzugefügt"
 
-#: crates/tagjoe-gui/src/main.rs:534 crates/tagjoe-gui/src/main.rs:548
-#: crates/tagjoe-gui/src/main.rs:669 crates/tagjoe-gui/src/view.rs:362
+#: crates/tagjoe-gui/src/main.rs:558 crates/tagjoe-gui/src/main.rs:572
+#: crates/tagjoe-gui/src/main.rs:693 crates/tagjoe-gui/src/view.rs:370
 msgid "Writing"
 msgstr "Schreibe"
 
-#: crates/tagjoe-gui/src/main.rs:534 crates/tagjoe-gui/src/main.rs:548
-#: crates/tagjoe-gui/src/main.rs:669 crates/tagjoe-gui/src/view.rs:362
+#: crates/tagjoe-gui/src/main.rs:558 crates/tagjoe-gui/src/main.rs:572
+#: crates/tagjoe-gui/src/main.rs:693 crates/tagjoe-gui/src/view.rs:370
 msgid "of"
 msgstr "von"
 
-#: crates/tagjoe-gui/src/main.rs:538 crates/tagjoe-gui/src/main.rs:718
+#: crates/tagjoe-gui/src/main.rs:562 crates/tagjoe-gui/src/main.rs:742
 msgid "error"
 msgstr "Fehler"
 
-#: crates/tagjoe-gui/src/main.rs:540 crates/tagjoe-gui/src/main.rs:685
+#: crates/tagjoe-gui/src/main.rs:564 crates/tagjoe-gui/src/main.rs:709
 msgid "deleted"
 msgstr "gelöscht"
 
-#: crates/tagjoe-gui/src/main.rs:573
+#: crates/tagjoe-gui/src/main.rs:597
 msgid "Choose a folder in the system dialog…"
 msgstr "Ordner im Systemdialog wählen…"
 
-#: crates/tagjoe-gui/src/main.rs:580
+#: crates/tagjoe-gui/src/main.rs:604
 msgid "No folder chosen."
 msgstr "Kein Ordner gewählt."
 
-#: crates/tagjoe-gui/src/main.rs:583
+#: crates/tagjoe-gui/src/main.rs:607
 msgid "Choose a cover image in the system dialog…"
 msgstr "Cover-Bild im Systemdialog wählen…"
 
-#: crates/tagjoe-gui/src/main.rs:591
+#: crates/tagjoe-gui/src/main.rs:615
 msgid "Cover set."
 msgstr "Cover gesetzt."
 
-#: crates/tagjoe-gui/src/main.rs:594
+#: crates/tagjoe-gui/src/main.rs:618
 msgid "No image chosen."
 msgstr "Kein Bild gewählt."
 
-#: crates/tagjoe-gui/src/main.rs:629
+#: crates/tagjoe-gui/src/main.rs:653
 msgid "Cover: enter an image file path or an http(s) URL."
 msgstr "Cover: Pfad einer Bilddatei oder eine http(s)-URL eingeben."
 
-#: crates/tagjoe-gui/src/main.rs:641 crates/tagjoe-gui/src/view.rs:230
+#: crates/tagjoe-gui/src/main.rs:665 crates/tagjoe-gui/src/view.rs:238
 msgid "Cover"
 msgstr "Cover"
 
-#: crates/tagjoe-gui/src/main.rs:670
+#: crates/tagjoe-gui/src/main.rs:694
 msgid "run started"
 msgstr "Lauf gestartet"
 
-#: crates/tagjoe-gui/src/main.rs:670
+#: crates/tagjoe-gui/src/main.rs:694
 msgid "steps"
 msgstr "Schritte"
 
-#: crates/tagjoe-gui/src/main.rs:679
+#: crates/tagjoe-gui/src/main.rs:703
 msgid "folder renamed"
 msgstr "Ordner umbenannt"
 
-#: crates/tagjoe-gui/src/main.rs:683
+#: crates/tagjoe-gui/src/main.rs:707
 msgid "Written:"
 msgstr "Geschrieben:"
 
-#: crates/tagjoe-gui/src/main.rs:683 crates/tagjoe-gui/src/main.rs:720
+#: crates/tagjoe-gui/src/main.rs:707 crates/tagjoe-gui/src/main.rs:744
 msgid "file(s)"
 msgstr "Datei(en)"
 
-#: crates/tagjoe-gui/src/main.rs:688
+#: crates/tagjoe-gui/src/main.rs:712
 msgid "error(s)"
 msgstr "Fehler"
 
-#: crates/tagjoe-gui/src/main.rs:690
+#: crates/tagjoe-gui/src/main.rs:714
 msgid "run finished"
 msgstr "Lauf beendet"
 
-#: crates/tagjoe-gui/src/main.rs:708
+#: crates/tagjoe-gui/src/main.rs:732
 msgid "Undoing the last run…"
 msgstr "Letzter Lauf wird rückgängig gemacht…"
 
-#: crates/tagjoe-gui/src/main.rs:718
+#: crates/tagjoe-gui/src/main.rs:742
 msgid "undone"
 msgstr "rückgängig"
 
-#: crates/tagjoe-gui/src/main.rs:720
+#: crates/tagjoe-gui/src/main.rs:744
 msgid "Undone:"
 msgstr "Rückgängig:"
 
-#: crates/tagjoe-gui/src/main.rs:723 crates/tagjoe-gui/src/main.rs:724
+#: crates/tagjoe-gui/src/main.rs:747 crates/tagjoe-gui/src/main.rs:748
 msgid "Undo failed"
 msgstr "Rückgängig fehlgeschlagen"
 
-#: crates/tagjoe-gui/src/main.rs:746
+#: crates/tagjoe-gui/src/main.rs:776
 msgid "Settings saved."
 msgstr "Einstellungen gespeichert."
 
-#: crates/tagjoe-gui/src/main.rs:747
+#: crates/tagjoe-gui/src/main.rs:777
 msgid "Cannot save settings"
 msgstr "Einstellungen können nicht gespeichert werden"
 
-#: crates/tagjoe-gui/src/main.rs:789 crates/tagjoe-gui/src/view.rs:71
+#: crates/tagjoe-gui/src/main.rs:795 crates/tagjoe-gui/src/view.rs:448
+msgid "Asking GitHub for the latest release…"
+msgstr "Frage GitHub nach dem neuesten Release…"
+
+#: crates/tagjoe-gui/src/main.rs:805
+msgid "Update available:"
+msgstr "Update verfügbar:"
+
+#: crates/tagjoe-gui/src/main.rs:809
+msgid "No newer version. Installed:"
+msgstr "Keine neuere Version. Installiert:"
+
+#: crates/tagjoe-gui/src/main.rs:813
+msgid "Update check failed"
+msgstr "Updateprüfung fehlgeschlagen"
+
+#: crates/tagjoe-gui/src/main.rs:821
+msgid "Downloading the package and checking its SHA-256 sum…"
+msgstr "Lade das Paket und prüfe die SHA-256-Summe…"
+
+#: crates/tagjoe-gui/src/main.rs:829
+msgid "Package verified."
+msgstr "Paket geprüft."
+
+#: crates/tagjoe-gui/src/main.rs:833
+msgid "Download failed"
+msgstr "Download fehlgeschlagen"
+
+#: crates/tagjoe-gui/src/main.rs:844
+msgid ""
+"Installer started – the system asks for your password. Restart tagjoe "
+"afterwards."
+msgstr ""
+"Installation gestartet – das System fragt nach dem Kennwort. Danach tagjoe "
+"neu starten."
+
+#: crates/tagjoe-gui/src/main.rs:847
+msgid "Cannot start the installer"
+msgstr "Installation lässt sich nicht starten"
+
+#: crates/tagjoe-gui/src/main.rs:881 crates/tagjoe-gui/src/view.rs:71
 msgid "tagjoe"
 msgstr ""
 
-#: crates/tagjoe-gui/src/settings.rs:218
+#: crates/tagjoe-gui/src/settings.rs:238
 msgid "Preview:"
 msgstr "Vorschau:"
 
-#: crates/tagjoe-gui/src/settings.rs:219
+#: crates/tagjoe-gui/src/settings.rs:239
 msgid "Error:"
 msgstr "Fehler:"
 
-#: crates/tagjoe-gui/src/settings.rs:240
+#: crates/tagjoe-gui/src/settings.rs:250
+msgid "Use this source"
+msgstr "Diese Quelle verwenden"
+
+#: crates/tagjoe-gui/src/settings.rs:278
 msgid "Audiobooks"
 msgstr "Hörbücher"
 
-#: crates/tagjoe-gui/src/settings.rs:240
+#: crates/tagjoe-gui/src/settings.rs:278
 msgid "Clean-up"
 msgstr "Bereinigen"
 
-#: crates/tagjoe-gui/src/settings.rs:240
+#: crates/tagjoe-gui/src/settings.rs:278
 msgid "General"
 msgstr "Allgemein"
 
-#: crates/tagjoe-gui/src/settings.rs:240
+#: crates/tagjoe-gui/src/settings.rs:278
 msgid "Sources and keys"
 msgstr "Quellen und Schlüssel"
 
-#: crates/tagjoe-gui/src/settings.rs:240 crates/tagjoe-gui/src/view.rs:229
+#: crates/tagjoe-gui/src/settings.rs:278 crates/tagjoe-gui/src/view.rs:237
 msgid "Tags"
 msgstr "Tags"
 
-#: crates/tagjoe-gui/src/settings.rs:240
+#: crates/tagjoe-gui/src/settings.rs:278
 msgid "Templates"
 msgstr "Vorlagen"
 
-#: crates/tagjoe-gui/src/settings.rs:247
+#: crates/tagjoe-gui/src/settings.rs:285
 msgid "FILE NAME · ALBUM"
 msgstr "DATEINAME · ALBUM"
 
-#: crates/tagjoe-gui/src/settings.rs:248
+#: crates/tagjoe-gui/src/settings.rs:286
 msgid "FILE NAME · COMPILATION"
 msgstr "DATEINAME · SAMPLER"
 
-#: crates/tagjoe-gui/src/settings.rs:249
+#: crates/tagjoe-gui/src/settings.rs:287
 msgid "FILE NAME · AUDIOBOOK"
 msgstr "DATEINAME · HÖRBUCH"
 
-#: crates/tagjoe-gui/src/settings.rs:251
+#: crates/tagjoe-gui/src/settings.rs:289
 msgid "FOLDER"
 msgstr "ORDNER"
 
-#: crates/tagjoe-gui/src/settings.rs:252
+#: crates/tagjoe-gui/src/settings.rs:290
 msgid "Rename folders (off when Jellyfin or Plex dictate the structure)"
 msgstr "Ordner umbenennen (aus, wenn Jellyfin oder Plex die Struktur vorgeben)"
 
-#: crates/tagjoe-gui/src/settings.rs:253
+#: crates/tagjoe-gui/src/settings.rs:291
 msgid "Preset: Jellyfin/Plex"
 msgstr "Vorgabe: Jellyfin/Plex"
 
-#: crates/tagjoe-gui/src/settings.rs:253
+#: crates/tagjoe-gui/src/settings.rs:291
 msgid "Preset: flat"
 msgstr "Vorgabe: flach"
 
-#: crates/tagjoe-gui/src/settings.rs:254 crates/tagjoe-gui/src/view.rs:23
-#: crates/tagjoe-gui/src/view.rs:397 po/EXTRA_KEYS.txt:8
+#: crates/tagjoe-gui/src/settings.rs:292 crates/tagjoe-gui/src/view.rs:23
+#: crates/tagjoe-gui/src/view.rs:405 po/EXTRA_KEYS.txt:8
 msgid "Album"
 msgstr "Album"
 
-#: crates/tagjoe-gui/src/settings.rs:255 crates/tagjoe-gui/src/view.rs:24
-#: crates/tagjoe-gui/src/view.rs:398 po/EXTRA_KEYS.txt:21
+#: crates/tagjoe-gui/src/settings.rs:293 crates/tagjoe-gui/src/view.rs:24
+#: crates/tagjoe-gui/src/view.rs:406 po/EXTRA_KEYS.txt:21
 msgid "Compilation"
 msgstr "Sampler"
 
-#: crates/tagjoe-gui/src/settings.rs:256 crates/tagjoe-gui/src/view.rs:25
-#: crates/tagjoe-gui/src/view.rs:399
+#: crates/tagjoe-gui/src/settings.rs:294 crates/tagjoe-gui/src/view.rs:25
+#: crates/tagjoe-gui/src/view.rs:407
 msgid "Audiobook"
 msgstr "Hörbuch"
 
-#: crates/tagjoe-gui/src/settings.rs:258
+#: crates/tagjoe-gui/src/settings.rs:296
 msgid "DISCS AND NUMBERS"
 msgstr "MEHRERE CDS UND NUMMERN"
 
-#: crates/tagjoe-gui/src/settings.rs:259
+#: crates/tagjoe-gui/src/settings.rs:297
 msgid "Number continuously across discs (14 of 27)"
 msgstr "Nummern fortlaufend über alle CDs (14 von 27)"
 
-#: crates/tagjoe-gui/src/settings.rs:260
+#: crates/tagjoe-gui/src/settings.rs:298
 msgid "Disc segment in the name (CD2 von 2 - 03 von 12)"
 msgstr "CD-Segment im Namen (CD2 von 2 - 03 von 12)"
 
-#: crates/tagjoe-gui/src/settings.rs:261
+#: crates/tagjoe-gui/src/settings.rs:299
 msgid "Disc segment"
 msgstr "CD-Segment"
 
-#: crates/tagjoe-gui/src/settings.rs:262
+#: crates/tagjoe-gui/src/settings.rs:300
 msgid "Pad numbers to the width of the total (03 of 12, 007 of 120)"
 msgstr ""
 "Nummern auf die Breite der Gesamtzahl auffüllen (03 von 12, 007 von 120)"
 
-#: crates/tagjoe-gui/src/settings.rs:263
+#: crates/tagjoe-gui/src/settings.rs:301
 msgid ""
 "Characters forbidden on Windows (\\ / : * ? \" < > |) are always replaced; "
 "names over 255 bytes are shortened."
 msgstr ""
 
-#: crates/tagjoe-gui/src/settings.rs:266
+#: crates/tagjoe-gui/src/settings.rs:304
 msgid "SYNTAX"
 msgstr "SYNTAX"
 
-#: crates/tagjoe-gui/src/settings.rs:266
+#: crates/tagjoe-gui/src/settings.rs:304
 #, no-c-format
 msgid ""
 "{field} placeholder · {field.pad(3)} · .upper() .lower() .trim() "
@@ -265,83 +309,177 @@ msgid ""
 "part, label, catalog, barcode, genre, ext"
 msgstr ""
 
-#: crates/tagjoe-gui/src/settings.rs:269
-msgid "MUSICBRAINZ AND ACOUSTID"
-msgstr "MUSICBRAINZ UND ACOUSTID"
+#: crates/tagjoe-gui/src/settings.rs:307
+msgid "ONLINE SOURCES"
+msgstr "ONLINE-QUELLEN"
 
-#: crates/tagjoe-gui/src/settings.rs:270
+#: crates/tagjoe-gui/src/settings.rs:308
 msgid ""
-"MusicBrainz and the Cover Art Archive need no key. AcoustID fingerprint "
-"lookups need an application key: register tagjoe here and paste the key "
-"below. fpcalc (libchromaprint-tools) must be installed."
+"Every online source is off until you switch it on. tagjoe then sends only "
+"what the source needs (listed under each switch) and, as with any network "
+"access, your IP address. Without any source tagjoe works from tags and "
+"folder names only; for identification, covers and audiobook data switch on "
+"at least MusicBrainz (music) or AudiobookDB/Audnexus (audiobooks). Responses "
+"are cached locally."
 msgstr ""
+"Jede Online-Quelle ist aus, bis du sie einschaltest. tagjoe sendet dann nur, "
+"was die Quelle braucht (steht unter jedem Schalter), und wie bei jedem "
+"Netzzugriff deine IP-Adresse. Ohne Quelle arbeitet tagjoe nur mit Tags und "
+"Ordnernamen; für Erkennung, Cover und Hörbuchdaten mindestens MusicBrainz "
+"(Musik) oder AudiobookDB/Audnexus (Hörbücher) einschalten. Antworten werden "
+"lokal zwischengespeichert."
 
-#: crates/tagjoe-gui/src/settings.rs:272
+#: crates/tagjoe-gui/src/settings.rs:310
+msgid "ACOUSTID"
+msgstr "ACOUSTID"
+
+#: crates/tagjoe-gui/src/settings.rs:311
+msgid ""
+"Acoustic fingerprints (needs fpcalc and MusicBrainz): sends the fingerprint "
+"and the duration of every file plus your application key. Register tagjoe at "
+"acoustid.org and paste the key."
+msgstr ""
+"Akustische Fingerabdrücke (braucht fpcalc und MusicBrainz): sendet "
+"Fingerabdruck und Dauer jeder Datei sowie deinen Anwendungsschlüssel. tagjoe "
+"bei acoustid.org registrieren und den Schlüssel eintragen."
+
+#: crates/tagjoe-gui/src/settings.rs:313
 msgid "AcoustID application key"
 msgstr "AcoustID-Anwendungsschlüssel"
 
-#: crates/tagjoe-gui/src/settings.rs:274
+#: crates/tagjoe-gui/src/settings.rs:314
+msgid "MUSICBRAINZ"
+msgstr "MUSICBRAINZ"
+
+#: crates/tagjoe-gui/src/settings.rs:315
+msgid ""
+"Release data for albums, compilations and audiobooks: sends album, artist or "
+"title and author as search terms, release ids and the program id with the "
+"project address (required by MusicBrainz)."
+msgstr ""
+"Release-Daten für Alben, Sampler und Hörbücher: sendet Album, Interpret bzw. "
+"Titel und Autor als Suchbegriffe, Release-Kennungen und die Programmkennung "
+"mit der Projektadresse (von MusicBrainz verlangt)."
+
+#: crates/tagjoe-gui/src/settings.rs:317
+msgid "COVER ART ARCHIVE"
+msgstr "COVER ART ARCHIVE"
+
+#: crates/tagjoe-gui/src/settings.rs:318
+msgid ""
+"Covers for MusicBrainz releases: sends the release id. Run by MetaBrainz and "
+"the Internet Archive."
+msgstr ""
+"Cover zu MusicBrainz-Releases: sendet die Release-Kennung. Betrieben von "
+"MetaBrainz und dem Internet Archive."
+
+#: crates/tagjoe-gui/src/settings.rs:320
 msgid "DISCOGS"
 msgstr "DISCOGS"
 
-#: crates/tagjoe-gui/src/settings.rs:275
-msgid "Use Discogs as a second music source (personal access token)"
+#: crates/tagjoe-gui/src/settings.rs:321
+msgid ""
+"Second music source: sends album and artist as search terms, release ids and "
+"your personal access token."
 msgstr ""
+"Zweite Musikquelle: sendet Album und Interpret als Suchbegriffe, Release-"
+"Kennungen und deinen persönlichen Zugangsschlüssel."
 
-#: crates/tagjoe-gui/src/settings.rs:277
+#: crates/tagjoe-gui/src/settings.rs:323
 msgid "Discogs token"
 msgstr "Discogs-Token"
 
-#: crates/tagjoe-gui/src/settings.rs:279
-msgid "AUDIOBOOKS"
-msgstr "HÖRBÜCHER"
+#: crates/tagjoe-gui/src/settings.rs:324
+msgid "AUDIOBOOKDB"
+msgstr "AUDIOBOOKDB"
 
-#: crates/tagjoe-gui/src/settings.rs:280
+#: crates/tagjoe-gui/src/settings.rs:325
 msgid ""
-"Audiobook data from AudiobookDB and Audnexus. Anonymous access works; an "
-"AudiobookDB API key (free account) raises the limits."
+"Audiobook data: sends the title as search term, book ids and, if set, your "
+"API key (free account, higher limits). Attribution with link is required by "
+"AudiobookDB and included in this program."
 msgstr ""
+"Hörbuchdaten: sendet den Titel als Suchbegriff, Buchkennungen und, falls "
+"eingetragen, deinen API-Schlüssel (kostenloses Konto, höhere Grenzen). Die "
+"von AudiobookDB verlangte Nennung mit Verweis ist im Programm enthalten."
 
-#: crates/tagjoe-gui/src/settings.rs:282
+#: crates/tagjoe-gui/src/settings.rs:327
 msgid "AudiobookDB API key"
 msgstr "AudiobookDB-API-Schlüssel"
 
-#: crates/tagjoe-gui/src/settings.rs:284
+#: crates/tagjoe-gui/src/settings.rs:328
+msgid "AUDNEXUS"
+msgstr "AUDNEXUS"
+
+#: crates/tagjoe-gui/src/settings.rs:329
+msgid ""
+"Audible metadata via the Audnexus API (never Audible directly): sends the "
+"ASIN and the region. The service has no published privacy policy; see its "
+"project page."
+msgstr ""
+"Audible-Metadaten über die Audnexus-Schnittstelle (nie Audible direkt): "
+"sendet ASIN und Region. Der Dienst hat keine veröffentlichte "
+"Datenschutzerklärung; siehe Projektseite."
+
+#: crates/tagjoe-gui/src/settings.rs:331
+msgid "DEUTSCHE NATIONALBIBLIOTHEK"
+msgstr "DEUTSCHE NATIONALBIBLIOTHEK"
+
+#: crates/tagjoe-gui/src/settings.rs:332
+msgid ""
+"German audiobooks from the national bibliography (SRU): sends title and "
+"author as search terms."
+msgstr ""
+"Deutsche Hörbücher aus der Nationalbibliografie (SRU): sendet Titel und "
+"Autor als Suchbegriffe."
+
+#: crates/tagjoe-gui/src/settings.rs:334
+msgid "OPEN LIBRARY"
+msgstr "OPEN LIBRARY"
+
+#: crates/tagjoe-gui/src/settings.rs:335
+msgid ""
+"Covers for DNB results by ISBN: sends the ISBN. Run by the Internet Archive."
+msgstr ""
+"Cover zu DNB-Treffern per ISBN: sendet die ISBN. Betrieben vom Internet "
+"Archive."
+
+#: crates/tagjoe-gui/src/settings.rs:337
 msgid "CACHE"
 msgstr "ZWISCHENSPEICHER"
 
-#: crates/tagjoe-gui/src/settings.rs:284
+#: crates/tagjoe-gui/src/settings.rs:337
 msgid "Keep responses for (days)"
 msgstr "Antworten aufbewahren (Tage)"
 
-#: crates/tagjoe-gui/src/settings.rs:287
+#: crates/tagjoe-gui/src/settings.rs:340
 msgid "FOREIGN FIELDS"
 msgstr "FREMDE FELDER"
 
-#: crates/tagjoe-gui/src/settings.rs:288
+#: crates/tagjoe-gui/src/settings.rs:341
 msgid ""
 "Every tag field outside the schema is foreign and removed by Apply or Clean. "
 "List the raw names to keep, one per line; * is a wildcard (e.g. "
 "REPLAYGAIN_*, TXXX:MyRating)."
 msgstr ""
 
-#: crates/tagjoe-gui/src/settings.rs:289
+#: crates/tagjoe-gui/src/settings.rs:342
 msgid "one pattern per line"
 msgstr "ein Muster je Zeile"
 
-#: crates/tagjoe-gui/src/settings.rs:291
+#: crates/tagjoe-gui/src/settings.rs:344
 msgid "Remove ID3v1 and APE containers from MP3 files (ID3v2 stays)"
 msgstr "ID3v1- und APE-Container aus MP3-Dateien entfernen (ID3v2 bleibt)"
 
-#: crates/tagjoe-gui/src/settings.rs:291
+#: crates/tagjoe-gui/src/settings.rs:344
 msgid "SECONDARY CONTAINERS"
 msgstr "ZWEITCONTAINER"
 
-#: crates/tagjoe-gui/src/settings.rs:292
+#: crates/tagjoe-gui/src/settings.rs:345
 msgid "FOLDER FILES"
 msgstr "DATEIEN IM ORDNER"
 
-#: crates/tagjoe-gui/src/settings.rs:293
+#: crates/tagjoe-gui/src/settings.rs:346
 msgid ""
 "Apply and Clean delete these files from the folder (after every audio file "
 "was written without error; the folder cover is embedded first; deleted for "
@@ -351,15 +489,15 @@ msgstr ""
 "nachdem alle Audiodateien fehlerfrei geschrieben wurden; das Ordner-Cover "
 "wird zuvor eingebettet; endgültig, ohne Rückgängig)"
 
-#: crates/tagjoe-gui/src/settings.rs:297
+#: crates/tagjoe-gui/src/settings.rs:350
 msgid "Images (JPG, JPEG, PNG)"
 msgstr "Bilder (JPG, JPEG, PNG)"
 
-#: crates/tagjoe-gui/src/settings.rs:300
+#: crates/tagjoe-gui/src/settings.rs:353
 msgid "Further extensions (comma-separated)"
 msgstr "Weitere Endungen (durch Komma getrennt)"
 
-#: crates/tagjoe-gui/src/settings.rs:301
+#: crates/tagjoe-gui/src/settings.rs:354
 msgid ""
 "Every file on the list is shown in the files table before writing; untick "
 "single files there to keep them."
@@ -367,23 +505,23 @@ msgstr ""
 "Jede betroffene Datei erscheint vor dem Schreiben in der Dateiliste; dort "
 "einzelne Haken entfernen, um Dateien zu behalten."
 
-#: crates/tagjoe-gui/src/settings.rs:305
+#: crates/tagjoe-gui/src/settings.rs:358
 msgid "ID3"
 msgstr "ID3"
 
-#: crates/tagjoe-gui/src/settings.rs:306
+#: crates/tagjoe-gui/src/settings.rs:359
 msgid "ID3v2.4 (UTF-8, standard)"
 msgstr "ID3v2.4 (UTF-8, Standard)"
 
-#: crates/tagjoe-gui/src/settings.rs:307
+#: crates/tagjoe-gui/src/settings.rs:360
 msgid "ID3v2.3 (older Windows software)"
 msgstr "ID3v2.3 (ältere Windows-Programme)"
 
-#: crates/tagjoe-gui/src/settings.rs:309
+#: crates/tagjoe-gui/src/settings.rs:362
 msgid "COVER"
 msgstr "COVER"
 
-#: crates/tagjoe-gui/src/settings.rs:310
+#: crates/tagjoe-gui/src/settings.rs:363
 msgid ""
 "Always check the cover and embed the best one (files without a cover get it; "
 "an existing cover is replaced when the found one is larger)"
@@ -391,88 +529,117 @@ msgstr ""
 "Cover immer prüfen und das beste einbetten (Dateien ohne Cover erhalten es; "
 "ein vorhandenes wird ersetzt, wenn das gefundene größer ist)"
 
-#: crates/tagjoe-gui/src/settings.rs:311
+#: crates/tagjoe-gui/src/settings.rs:364
 msgid "Scale embedded covers down to (px)"
 msgstr "Eingebettete Cover verkleinern auf (px)"
 
-#: crates/tagjoe-gui/src/settings.rs:312
+#: crates/tagjoe-gui/src/settings.rs:365
 msgid "Otherwise: replace existing covers smaller than (px)"
 msgstr "Sonst: vorhandene Cover ersetzen, wenn kleiner als (px)"
 
-#: crates/tagjoe-gui/src/settings.rs:316
+#: crates/tagjoe-gui/src/settings.rs:369
 msgid "CHAPTERS"
 msgstr "KAPITEL"
 
-#: crates/tagjoe-gui/src/settings.rs:317
+#: crates/tagjoe-gui/src/settings.rs:370
 msgid "Title for unnamed chapters"
 msgstr "Titel für unbenannte Kapitel"
 
-#: crates/tagjoe-gui/src/settings.rs:318
+#: crates/tagjoe-gui/src/settings.rs:371
 #, no-c-format
 msgid ""
 "{chapter} and {chaptertotal} are available, e.g. \"Kapitel {chapter}\" or "
 "\"Chapter {chapter} of {chaptertotal}\"."
 msgstr ""
 
-#: crates/tagjoe-gui/src/settings.rs:320
+#: crates/tagjoe-gui/src/settings.rs:373
 msgid "SOURCES"
 msgstr "QUELLEN"
 
-#: crates/tagjoe-gui/src/settings.rs:321
+#: crates/tagjoe-gui/src/settings.rs:374
 msgid "Audible regions (Audnexus), in order"
 msgstr "Audible-Regionen (Audnexus), in Reihenfolge"
 
-#: crates/tagjoe-gui/src/settings.rs:322
+#: crates/tagjoe-gui/src/settings.rs:375
 msgid "Preferred release language (AudiobookDB)"
 msgstr "Bevorzugte Sprache des Releases (AudiobookDB)"
 
-#: crates/tagjoe-gui/src/settings.rs:326
+#: crates/tagjoe-gui/src/settings.rs:379
 msgid "Base language is English; German is available."
 msgstr "Grundsprache ist Englisch; Deutsch ist verfügbar."
 
-#: crates/tagjoe-gui/src/settings.rs:326
+#: crates/tagjoe-gui/src/settings.rs:379
 msgid "LANGUAGE"
 msgstr "SPRACHE"
 
-#: crates/tagjoe-gui/src/settings.rs:326
+#: crates/tagjoe-gui/src/settings.rs:379
 msgid "UI language (empty = system)"
 msgstr "Sprache der Oberfläche (leer = System)"
 
-#: crates/tagjoe-gui/src/settings.rs:327 crates/tagjoe-gui/src/view.rs:66
+#: crates/tagjoe-gui/src/settings.rs:380
+msgid "UPDATES"
+msgstr "UPDATES"
+
+#: crates/tagjoe-gui/src/settings.rs:381 crates/tagjoe-gui/src/view.rs:445
+msgid "Installed:"
+msgstr "Installiert:"
+
+#: crates/tagjoe-gui/src/settings.rs:381
+msgid ""
+"The check asks GitHub at most once a day for the latest release of this "
+"repository and sends your IP address and the program id. Nothing is "
+"downloaded without your confirmation; a package is verified against "
+"SHA256SUMS of the same release."
+msgstr ""
+"Die Prüfung fragt höchstens einmal täglich bei GitHub nach dem neuesten "
+"Release dieses Repositorys und übermittelt dabei deine IP-Adresse und die "
+"Programmkennung. Ohne deine Bestätigung wird nichts geladen; ein Paket wird "
+"gegen SHA256SUMS desselben Releases geprüft."
+
+#: crates/tagjoe-gui/src/settings.rs:382
+msgid "Check for new versions"
+msgstr "Nach neuen Versionen suchen"
+
+#: crates/tagjoe-gui/src/settings.rs:383
+msgid "Check now"
+msgstr "Jetzt prüfen"
+
+#: crates/tagjoe-gui/src/settings.rs:385 crates/tagjoe-gui/src/view.rs:66
 msgid "QUEUE"
 msgstr "WARTESCHLANGE"
 
-#: crates/tagjoe-gui/src/settings.rs:327
+#: crates/tagjoe-gui/src/settings.rs:385
 msgid "Remove a folder from the queue once it was written without errors"
 msgstr "Ordner nach fehlerfreiem Schreiben aus der Warteschlange entfernen"
 
-#: crates/tagjoe-gui/src/settings.rs:328
+#: crates/tagjoe-gui/src/settings.rs:386
 msgid "CONFIGURATION FILE"
 msgstr "KONFIGURATIONSDATEI"
 
-#: crates/tagjoe-gui/src/settings.rs:329
+#: crates/tagjoe-gui/src/settings.rs:387
 msgid "CREDITS"
 msgstr "DANKSAGUNG"
 
-#: crates/tagjoe-gui/src/settings.rs:329
+#: crates/tagjoe-gui/src/settings.rs:387
 msgid ""
 "Music data: MusicBrainz, AcoustID, Cover Art Archive, Discogs. Audiobook "
-"data: AudiobookDB and Audnexus."
-msgstr ""
+"data: AudiobookDB, Audnexus, Deutsche Nationalbibliothek, covers from Open "
+"Library."
+msgstr "Musikdaten: MusicBrainz, AcoustID, Cover Art Archive, Discogs. Hörbuchdaten: AudiobookDB, Audnexus, Deutsche Nationalbibliothek, Cover von Open Library."
 
-#: crates/tagjoe-gui/src/settings.rs:332
+#: crates/tagjoe-gui/src/settings.rs:390
 msgid "Cancel"
 msgstr "Abbrechen"
 
-#: crates/tagjoe-gui/src/settings.rs:332
+#: crates/tagjoe-gui/src/settings.rs:390
 msgid "Reset to defaults"
 msgstr "Auf Vorgaben zurücksetzen"
 
-#: crates/tagjoe-gui/src/settings.rs:332
+#: crates/tagjoe-gui/src/settings.rs:390
 msgid "Save"
 msgstr "Speichern"
 
-#: crates/tagjoe-gui/src/settings.rs:332
+#: crates/tagjoe-gui/src/settings.rs:390
 msgid "tagjoe – Settings"
 msgstr "tagjoe – Einstellungen"
 
@@ -500,12 +667,17 @@ msgstr "per Fingerabdruck"
 msgid "match"
 msgstr "Übereinstimmung"
 
-#: crates/tagjoe-gui/src/view.rs:119
-msgid "Candidates below the threshold – pick one or complete manually."
+#: crates/tagjoe-gui/src/view.rs:121
+msgid ""
+"All online sources are off – switch on sources under Settings → Sources to "
+"identify releases, covers and audiobooks. Values below come from tags and "
+"folder names."
 msgstr ""
-"Kandidaten unter der Schwelle – einen wählen oder manuell vervollständigen."
+"Alle Online-Quellen sind aus – unter Einstellungen → Quellen Quellen "
+"einschalten, um Releases, Cover und Hörbücher zu erkennen. Die Werte unten "
+"stammen aus Tags und Ordnernamen."
 
-#: crates/tagjoe-gui/src/view.rs:119
+#: crates/tagjoe-gui/src/view.rs:123
 msgid ""
 "No source match – values from tags and folder names; complete the fields "
 "manually."
@@ -513,119 +685,124 @@ msgstr ""
 "Kein Treffer in den Quellen – Werte aus Tags und Ordnernamen; bitte Felder "
 "manuell vervollständigen."
 
-#: crates/tagjoe-gui/src/view.rs:127
+#: crates/tagjoe-gui/src/view.rs:125
+msgid "Candidates below the threshold – pick one or complete manually."
+msgstr ""
+"Kandidaten unter der Schwelle – einen wählen oder manuell vervollständigen."
+
+#: crates/tagjoe-gui/src/view.rs:135
 msgid "tags only"
 msgstr "nur Tags"
 
-#: crates/tagjoe-gui/src/view.rs:131
+#: crates/tagjoe-gui/src/view.rs:139
 msgid "Rename files"
 msgstr "Dateien umbenennen"
 
-#: crates/tagjoe-gui/src/view.rs:135
+#: crates/tagjoe-gui/src/view.rs:143
 msgid "foreign fields"
 msgstr "fremde Felder"
 
-#: crates/tagjoe-gui/src/view.rs:136
+#: crates/tagjoe-gui/src/view.rs:144
 msgid "cover missing:"
 msgstr "Cover fehlt:"
 
-#: crates/tagjoe-gui/src/view.rs:137
+#: crates/tagjoe-gui/src/view.rs:145
 msgid "renames"
 msgstr "Umbenennungen"
 
-#: crates/tagjoe-gui/src/view.rs:143
+#: crates/tagjoe-gui/src/view.rs:151
 msgid "Cover: image file path or URL"
 msgstr "Cover: Bilddatei oder URL"
 
-#: crates/tagjoe-gui/src/view.rs:144
+#: crates/tagjoe-gui/src/view.rs:152
 msgid "Use"
 msgstr "Verwenden"
 
-#: crates/tagjoe-gui/src/view.rs:145
+#: crates/tagjoe-gui/src/view.rs:153
 msgid "From folder"
 msgstr "Aus Ordner"
 
-#: crates/tagjoe-gui/src/view.rs:146
+#: crates/tagjoe-gui/src/view.rs:154
 msgid "Cover from file…"
 msgstr "Cover aus Datei…"
 
-#: crates/tagjoe-gui/src/view.rs:151
+#: crates/tagjoe-gui/src/view.rs:159
 msgid "no cover found – pick a file or paste a URL below"
 msgstr "kein Cover gefunden – unten Datei wählen oder Adresse einfügen"
 
-#: crates/tagjoe-gui/src/view.rs:152
+#: crates/tagjoe-gui/src/view.rs:160
 msgid "embedded in the files already, nothing better found"
 msgstr "bereits in den Dateien eingebettet, nichts Besseres gefunden"
 
-#: crates/tagjoe-gui/src/view.rs:153
+#: crates/tagjoe-gui/src/view.rs:161
 msgid "folder file"
 msgstr "Ordnerdatei"
 
-#: crates/tagjoe-gui/src/view.rs:154
+#: crates/tagjoe-gui/src/view.rs:162
 msgid "chosen file"
 msgstr "gewählte Datei"
 
-#: crates/tagjoe-gui/src/view.rs:155
+#: crates/tagjoe-gui/src/view.rs:163
 msgid "web address"
 msgstr "Webadresse"
 
-#: crates/tagjoe-gui/src/view.rs:162
+#: crates/tagjoe-gui/src/view.rs:170
 msgid "Cover:"
 msgstr "Cover:"
 
-#: crates/tagjoe-gui/src/view.rs:165
+#: crates/tagjoe-gui/src/view.rs:173
 msgid "Embed cover into all files"
 msgstr "Cover in alle Dateien einbetten"
 
-#: crates/tagjoe-gui/src/view.rs:188
+#: crates/tagjoe-gui/src/view.rs:196
 msgid "no plan"
 msgstr "kein Plan"
 
-#: crates/tagjoe-gui/src/view.rs:203
+#: crates/tagjoe-gui/src/view.rs:211
 msgid "to add"
 msgstr "fehlen"
 
-#: crates/tagjoe-gui/src/view.rs:206
+#: crates/tagjoe-gui/src/view.rs:214
 msgid "differ"
 msgstr "weichen ab"
 
-#: crates/tagjoe-gui/src/view.rs:209 crates/tagjoe-gui/src/view.rs:310
+#: crates/tagjoe-gui/src/view.rs:217 crates/tagjoe-gui/src/view.rs:318
 msgid "foreign"
 msgstr "fremd"
 
-#: crates/tagjoe-gui/src/view.rs:212
+#: crates/tagjoe-gui/src/view.rs:220
 msgid "unknown"
 msgstr "unbekannt"
 
-#: crates/tagjoe-gui/src/view.rs:218
+#: crates/tagjoe-gui/src/view.rs:226
 msgid "add"
 msgstr "ergänzen"
 
-#: crates/tagjoe-gui/src/view.rs:218
+#: crates/tagjoe-gui/src/view.rs:226
 msgid "replace"
 msgstr "ersetzen"
 
-#: crates/tagjoe-gui/src/view.rs:219 crates/tagjoe-gui/src/view.rs:244
+#: crates/tagjoe-gui/src/view.rs:227 crates/tagjoe-gui/src/view.rs:252
 msgid "present"
 msgstr "vorhanden"
 
-#: crates/tagjoe-gui/src/view.rs:220 crates/tagjoe-gui/src/view.rs:307
+#: crates/tagjoe-gui/src/view.rs:228 crates/tagjoe-gui/src/view.rs:315
 msgid "missing"
 msgstr "fehlt"
 
-#: crates/tagjoe-gui/src/view.rs:226
+#: crates/tagjoe-gui/src/view.rs:234
 msgid "No"
 msgstr "Nr"
 
-#: crates/tagjoe-gui/src/view.rs:227
+#: crates/tagjoe-gui/src/view.rs:235
 msgid "Rename"
 msgstr "Umben."
 
-#: crates/tagjoe-gui/src/view.rs:228
+#: crates/tagjoe-gui/src/view.rs:236
 msgid "File (current → proposed)"
 msgstr "Datei (vorhanden → Vorschlag)"
 
-#: crates/tagjoe-gui/src/view.rs:238
+#: crates/tagjoe-gui/src/view.rs:246
 msgid "(name unchanged)"
 msgstr "(Name unverändert)"
 
@@ -633,79 +810,79 @@ msgstr "(Name unverändert)"
 msgid "Unknown"
 msgstr "Unbekannt"
 
-#: crates/tagjoe-gui/src/view.rs:270
+#: crates/tagjoe-gui/src/view.rs:278
 msgid "delete"
 msgstr "löschen"
 
-#: crates/tagjoe-gui/src/view.rs:270
+#: crates/tagjoe-gui/src/view.rs:278
 msgid "keep"
 msgstr "behalten"
 
-#: crates/tagjoe-gui/src/view.rs:279
+#: crates/tagjoe-gui/src/view.rs:287
 msgid "FOLDER FILES TO DELETE"
 msgstr "ZU LÖSCHENDE DATEIEN IM ORDNER"
 
-#: crates/tagjoe-gui/src/view.rs:279
+#: crates/tagjoe-gui/src/view.rs:287
 msgid "after every audio file was written without error; deleted for good"
 msgstr "nachdem alle Audiodateien fehlerfrei geschrieben wurden; endgültig"
 
-#: crates/tagjoe-gui/src/view.rs:283
+#: crates/tagjoe-gui/src/view.rs:291
 msgid "FILES"
 msgstr "DATEIEN"
 
-#: crates/tagjoe-gui/src/view.rs:289
+#: crates/tagjoe-gui/src/view.rs:297
 msgid "no files"
 msgstr "keine Dateien"
 
-#: crates/tagjoe-gui/src/view.rs:295
+#: crates/tagjoe-gui/src/view.rs:303
 msgid "Field"
 msgstr "Feld"
 
-#: crates/tagjoe-gui/src/view.rs:296
+#: crates/tagjoe-gui/src/view.rs:304
 msgid "Current"
 msgstr "Vorhanden"
 
-#: crates/tagjoe-gui/src/view.rs:297
+#: crates/tagjoe-gui/src/view.rs:305
 msgid "New (editable)"
 msgstr "Neu (bearbeitbar)"
 
-#: crates/tagjoe-gui/src/view.rs:298
+#: crates/tagjoe-gui/src/view.rs:306
 msgid "Status"
 msgstr "Status"
 
-#: crates/tagjoe-gui/src/view.rs:305
+#: crates/tagjoe-gui/src/view.rs:313
 msgid "ok"
 msgstr "ok"
 
-#: crates/tagjoe-gui/src/view.rs:307
+#: crates/tagjoe-gui/src/view.rs:315
 msgid "missing → added"
 msgstr "fehlt → wird ergänzt"
 
-#: crates/tagjoe-gui/src/view.rs:309
+#: crates/tagjoe-gui/src/view.rs:317
 msgid "differs"
 msgstr "weicht ab"
 
-#: crates/tagjoe-gui/src/view.rs:334
+#: crates/tagjoe-gui/src/view.rs:342
 msgid "remove"
 msgstr "entfernen"
 
-#: crates/tagjoe-gui/src/view.rs:341
+#: crates/tagjoe-gui/src/view.rs:349
 msgid "FOREIGN ENTRIES"
 msgstr "FREMDE EINTRÄGE"
 
-#: crates/tagjoe-gui/src/view.rs:344
+#: crates/tagjoe-gui/src/view.rs:352
 msgid "Secondary containers to remove"
 msgstr "Zu entfernende Zweitcontainer"
 
-#: crates/tagjoe-gui/src/view.rs:348
+#: crates/tagjoe-gui/src/view.rs:356
 msgid ", replaces the existing one"
 msgstr ", ersetzt das vorhandene"
 
-#: crates/tagjoe-gui/src/view.rs:348
+#: crates/tagjoe-gui/src/view.rs:356
 msgid "Embed cover"
 msgstr "Cover einbetten"
 
-#: crates/tagjoe-gui/src/view.rs:350
+#: crates/tagjoe-gui/src/view.rs:358
 msgid ""
 "Edits in “New” apply to this file; album-level fields apply to all files of "
 "the folder."
@@ -713,43 +890,43 @@ msgstr ""
 "Änderungen in „Neu“ gelten für diese Datei; Album-Felder gelten für alle "
 "Dateien des Ordners."
 
-#: crates/tagjoe-gui/src/view.rs:351
+#: crates/tagjoe-gui/src/view.rs:359
 msgid "FIELDS"
 msgstr "FELDER"
 
-#: crates/tagjoe-gui/src/view.rs:351
+#: crates/tagjoe-gui/src/view.rs:359
 msgid "file"
 msgstr "Datei"
 
-#: crates/tagjoe-gui/src/view.rs:357
+#: crates/tagjoe-gui/src/view.rs:365
 msgid "Journal:"
 msgstr "Journal:"
 
-#: crates/tagjoe-gui/src/view.rs:371
+#: crates/tagjoe-gui/src/view.rs:379
 msgid "Log"
 msgstr "Protokoll"
 
-#: crates/tagjoe-gui/src/view.rs:371
+#: crates/tagjoe-gui/src/view.rs:379
 msgid "errors"
 msgstr "Fehler"
-
-#: crates/tagjoe-gui/src/view.rs:377
-msgid "Remove from queue"
-msgstr "Aus Warteschlange entfernen"
-
-#: crates/tagjoe-gui/src/view.rs:378
-msgid "Clean only"
-msgstr "Nur bereinigen"
 
 #: crates/tagjoe-gui/src/view.rs:38
 msgid "reading…"
 msgstr "wird gelesen…"
 
-#: crates/tagjoe-gui/src/view.rs:381
+#: crates/tagjoe-gui/src/view.rs:385
+msgid "Remove from queue"
+msgstr "Aus Warteschlange entfernen"
+
+#: crates/tagjoe-gui/src/view.rs:386
+msgid "Clean only"
+msgstr "Nur bereinigen"
+
+#: crates/tagjoe-gui/src/view.rs:389
 msgid "Apply"
 msgstr "Übernehmen"
 
-#: crates/tagjoe-gui/src/view.rs:381
+#: crates/tagjoe-gui/src/view.rs:389
 msgid "to delete"
 msgstr "löschen"
 
@@ -757,20 +934,20 @@ msgstr "löschen"
 msgid "identifying"
 msgstr "Erkennung"
 
-#: crates/tagjoe-gui/src/view.rs:394
+#: crates/tagjoe-gui/src/view.rs:402
 msgid "Type:"
 msgstr "Typ:"
 
-#: crates/tagjoe-gui/src/view.rs:42 crates/tagjoe-gui/src/view.rs:133
-#: crates/tagjoe-gui/src/view.rs:199
+#: crates/tagjoe-gui/src/view.rs:42 crates/tagjoe-gui/src/view.rs:141
+#: crates/tagjoe-gui/src/view.rs:207
 msgid "complete"
 msgstr "vollständig"
 
-#: crates/tagjoe-gui/src/view.rs:420
+#: crates/tagjoe-gui/src/view.rs:428
 msgid "Drop a folder (album, compilation or audiobook) onto the window."
 msgstr "Ziehen Sie einen Ordner (Album, Sampler oder Hörbuch) auf das Fenster."
 
-#: crates/tagjoe-gui/src/view.rs:420
+#: crates/tagjoe-gui/src/view.rs:428
 msgid ""
 "tagjoe reads every file, checks each tag field, proposes tags, cover and "
 "file names – nothing is written until you click Apply."
@@ -782,29 +959,65 @@ msgstr ""
 msgid "no match – complete manually"
 msgstr "kein Treffer – manuell vervollständigen"
 
-#: crates/tagjoe-gui/src/view.rs:448
-msgid "LOG"
-msgstr "PROTOKOLL"
+#: crates/tagjoe-gui/src/view.rs:446
+msgid "Later"
+msgstr "Später"
 
 #: crates/tagjoe-gui/src/view.rs:449
-msgid "Clear log"
-msgstr "Protokoll leeren"
+msgid "No newer version."
+msgstr "Keine neuere Version."
 
-#: crates/tagjoe-gui/src/view.rs:452
-msgid "Nothing written yet."
-msgstr "Noch nichts geschrieben."
+#: crates/tagjoe-gui/src/view.rs:450
+msgid "Update failed"
+msgstr "Update fehlgeschlagen"
+
+#: crates/tagjoe-gui/src/view.rs:458
+msgid "is available"
+msgstr "ist verfügbar"
+
+#: crates/tagjoe-gui/src/view.rs:459
+msgid "Download and verify"
+msgstr "Herunterladen und prüfen"
 
 #: crates/tagjoe-gui/src/view.rs:46
 msgid "cover missing"
 msgstr "Cover fehlt"
 
-#: crates/tagjoe-gui/src/view.rs:46 crates/tagjoe-gui/src/view.rs:134
+#: crates/tagjoe-gui/src/view.rs:46 crates/tagjoe-gui/src/view.rs:142
 msgid "incomplete"
 msgstr "unvollständig"
+
+#: crates/tagjoe-gui/src/view.rs:460
+msgid "Release page"
+msgstr "Release-Seite"
+
+#: crates/tagjoe-gui/src/view.rs:470
+msgid "Downloading and checking the SHA-256 sum of"
+msgstr "Lade und prüfe die SHA-256-Summe von"
+
+#: crates/tagjoe-gui/src/view.rs:473
+msgid "downloaded, checksum verified. Install with:"
+msgstr "geladen, Prüfsumme stimmt. Installieren mit:"
+
+#: crates/tagjoe-gui/src/view.rs:474
+msgid "Install"
+msgstr "Installieren"
 
 #: crates/tagjoe-gui/src/view.rs:49
 msgid "writing…"
 msgstr "wird geschrieben…"
+
+#: crates/tagjoe-gui/src/view.rs:505
+msgid "LOG"
+msgstr "PROTOKOLL"
+
+#: crates/tagjoe-gui/src/view.rs:506
+msgid "Clear log"
+msgstr "Protokoll leeren"
+
+#: crates/tagjoe-gui/src/view.rs:509
+msgid "Nothing written yet."
+msgstr "Noch nichts geschrieben."
 
 #: crates/tagjoe-gui/src/view.rs:63
 msgid "Drop a folder here (Wayland: use “Open folder…”)"
@@ -957,6 +1170,12 @@ msgstr "Autor (Album)"
 #: po/EXTRA_KEYS.txt:9
 msgid "Book"
 msgstr "Buch"
+
+#~ msgid "MUSICBRAINZ AND ACOUSTID"
+#~ msgstr "MUSICBRAINZ UND ACOUSTID"
+
+#~ msgid "AUDIOBOOKS"
+#~ msgstr "HÖRBÜCHER"
 
 #~ msgid "Replace existing covers smaller than (px)"
 #~ msgstr "Vorhandene Cover ersetzen, wenn kleiner als (px)"

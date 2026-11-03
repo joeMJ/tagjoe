@@ -8,8 +8,8 @@ pub const DEFAULT_ALBUM: &str = "{albumartist} - {album} - {year} - {track} von 
 pub const DEFAULT_COMPILATION: &str = "VA - {album} - {year} - {track} von {tracktotal} - {artist} - {title}";
 pub const DEFAULT_AUDIOBOOK: &str = "{author} - {book} - {year} - {chapter} von {chaptertotal} - {title}";
 pub const DEFAULT_FOLDER_ALBUM: &str = "{albumartist} - {album} - {year}";
-pub const DEFAULT_FOLDER_COMPILATION: &str = "VA - {album} - {year}";
-pub const DEFAULT_FOLDER_AUDIOBOOK: &str = "{author} - {book} - {year}";
+pub const DEFAULT_FOLDER_COMPILATION: &str = "{album} - {year}";
+pub const DEFAULT_FOLDER_AUDIOBOOK: &str = "{author} - {book}";
 /// Segment inserted before the track number when `disc_mode = "segment"` and a release has several discs.
 pub const DEFAULT_DISC_SEGMENT: &str = "CD{disc} von {disctotal} - ";
 
@@ -31,7 +31,7 @@ impl Default for Templates {
             album: DEFAULT_ALBUM.into(),
             compilation: DEFAULT_COMPILATION.into(),
             audiobook: DEFAULT_AUDIOBOOK.into(),
-            folder_enabled: false,
+            folder_enabled: true,
             folder_album: DEFAULT_FOLDER_ALBUM.into(),
             folder_compilation: DEFAULT_FOLDER_COMPILATION.into(),
             folder_audiobook: DEFAULT_FOLDER_AUDIOBOOK.into(),
@@ -136,11 +136,23 @@ impl FolderClean {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
+/// Online sources. Every one is off until the user switches it on (privacy: nothing leaves the
+/// computer by default). With everything off tagjoe works from tags and folder names only.
 pub struct Sources {
+    pub acoustid_enabled: bool,
     pub acoustid_key: String,
+    pub musicbrainz_enabled: bool,
+    /// Cover Art Archive (covers for MusicBrainz releases).
+    pub caa_enabled: bool,
     pub discogs_enabled: bool,
     pub discogs_token: String,
+    pub audiobookdb_enabled: bool,
     pub audiobookdb_key: String,
+    pub audnexus_enabled: bool,
+    /// Deutsche Nationalbibliothek (German audiobooks).
+    pub dnb_enabled: bool,
+    /// Open Library covers by ISBN (for DNB results).
+    pub openlibrary_enabled: bool,
     pub musicbrainz_url: String,
     pub audnexus_url: String,
     pub audiobookdb_url: String,
@@ -149,15 +161,36 @@ pub struct Sources {
 impl Default for Sources {
     fn default() -> Self {
         Self {
+            acoustid_enabled: false,
             acoustid_key: String::new(),
+            musicbrainz_enabled: false,
+            caa_enabled: false,
             discogs_enabled: false,
             discogs_token: String::new(),
+            audiobookdb_enabled: false,
             audiobookdb_key: String::new(),
+            audnexus_enabled: false,
+            dnb_enabled: false,
+            openlibrary_enabled: false,
             musicbrainz_url: "https://musicbrainz.org/ws/2".into(),
             audnexus_url: "https://api.audnex.us".into(),
             audiobookdb_url: "https://audiobookdb.org/api".into(),
             cache_days: 30,
         }
+    }
+}
+impl Sources {
+    /// True when at least one online source is switched on.
+    pub fn any_enabled(&self) -> bool {
+        self.acoustid_enabled || self.musicbrainz_enabled || self.caa_enabled || self.discogs_enabled || self.audiobookdb_enabled || self.audnexus_enabled || self.dnb_enabled || self.openlibrary_enabled
+    }
+    /// Sources useful for music (albums, compilations).
+    pub fn music_enabled(&self) -> bool {
+        self.acoustid_enabled || self.musicbrainz_enabled || self.discogs_enabled
+    }
+    /// Sources useful for audiobooks.
+    pub fn book_enabled(&self) -> bool {
+        self.audiobookdb_enabled || self.audnexus_enabled || self.musicbrainz_enabled || self.dnb_enabled
     }
 }
 
@@ -173,11 +206,11 @@ pub struct Audiobook {
 }
 impl Default for Audiobook {
     fn default() -> Self {
-        Self { chapter_title: "Kapitel {chapter}".into(), audnexus_regions: vec!["de".into(), "us".into(), "uk".into()], language: "German".into() }
+        Self { chapter_title: "Kapitel {chapter}".into(), audnexus_regions: vec!["de".into()], language: "German".into() }
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Config {
     pub audiobook: Audiobook,
@@ -190,6 +223,15 @@ pub struct Config {
     pub language: String,
     /// GUI: drop a folder from the queue once it was written without errors.
     pub remove_done_from_queue: bool,
+    /// Ask GitHub for a newer release (at most once a day); off by default.
+    pub update_check: bool,
+    /// Unix time of the last update check.
+    pub update_last_check: u64,
+}
+impl Default for Config {
+    fn default() -> Self {
+        Self { audiobook: Audiobook::default(), templates: Templates::default(), numbering: Numbering::default(), tags: TagOptions::default(), sources: Sources::default(), clean: FolderClean::default(), language: String::new(), remove_done_from_queue: true, update_check: false, update_last_check: 0 }
+    }
 }
 
 pub fn config_dir() -> PathBuf {
@@ -251,6 +293,9 @@ mod tests {
         let back: Config = toml::from_str(&t).unwrap();
         assert_eq!(c, back);
         assert!(t.contains("von {tracktotal}"));
+        assert!(!c.sources.any_enabled(), "every online source is off by default");
+        assert!(!c.update_check);
+        assert!(c.remove_done_from_queue && c.templates.folder_enabled);
     }
     #[test]
     fn partial_file_uses_defaults() {

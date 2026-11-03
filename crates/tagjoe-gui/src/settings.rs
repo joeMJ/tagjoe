@@ -43,6 +43,15 @@ pub enum SettingsMessage {
     DiscMode(DiscMode),
     DiscSegment(String),
     AcoustIdKey(String),
+    AcoustIdEnabled(bool),
+    MusicBrainzEnabled(bool),
+    CaaEnabled(bool),
+    AudiobookDbEnabled(bool),
+    AudnexusEnabled(bool),
+    DnbEnabled(bool),
+    OpenLibraryEnabled(bool),
+    UpdateCheck(bool),
+    CheckUpdateNow,
     DiscogsEnabled(bool),
     DiscogsToken(String),
     AudiobookDbKey(String),
@@ -71,6 +80,8 @@ pub enum SettingsMessage {
 }
 
 pub enum Outcome {
+    /// Save, close and ask GitHub for a newer release.
+    CheckUpdate(Box<Config>),
     Keep,
     Close,
     Save(Box<Config>),
@@ -112,6 +123,14 @@ impl SettingsState {
             M::DiscSegment(s) => self.cfg.numbering.disc_segment = s,
             M::AcoustIdKey(s) => self.cfg.sources.acoustid_key = s,
             M::DiscogsEnabled(b) => self.cfg.sources.discogs_enabled = b,
+            M::AcoustIdEnabled(b) => self.cfg.sources.acoustid_enabled = b,
+            M::MusicBrainzEnabled(b) => self.cfg.sources.musicbrainz_enabled = b,
+            M::CaaEnabled(b) => self.cfg.sources.caa_enabled = b,
+            M::AudiobookDbEnabled(b) => self.cfg.sources.audiobookdb_enabled = b,
+            M::AudnexusEnabled(b) => self.cfg.sources.audnexus_enabled = b,
+            M::DnbEnabled(b) => self.cfg.sources.dnb_enabled = b,
+            M::OpenLibraryEnabled(b) => self.cfg.sources.openlibrary_enabled = b,
+            M::UpdateCheck(b) => self.cfg.update_check = b,
             M::DiscogsToken(s) => self.cfg.sources.discogs_token = s,
             M::AudiobookDbKey(s) => self.cfg.sources.audiobookdb_key = s,
             M::KeepText(s) => {
@@ -157,6 +176,7 @@ impl SettingsState {
                 *self = SettingsState::new(Config::default());
             }
             M::Save => return Outcome::Save(Box::new(self.cfg.clone())),
+            M::CheckUpdateNow => return Outcome::CheckUpdate(Box::new(self.cfg.clone())),
             M::OpenUrl(u) => crate::open_url(&u),
             M::Close => return Outcome::Close,
         }
@@ -224,6 +244,24 @@ fn card<'a>(title: String, body: Element<'a, SettingsMessage>) -> Element<'a, Se
     container(column![text(title).size(12).style(th::dim), body].spacing(6)).padding(10).width(Fill).style(th::card).into()
 }
 
+/// One online source: switch, what it sends, links (privacy policy last), optional key field.
+fn source_card<'a>(title: String, on: bool, msg: fn(bool) -> SettingsMessage, what: String, links: &[&'static str], key: Option<Element<'a, SettingsMessage>>) -> Element<'a, SettingsMessage> {
+    let mut c = column![
+        toggler(on).label(t("Use this source")).on_toggle(msg).text_size(13),
+        text(what).size(12).style(th::dim),
+    ]
+    .spacing(6);
+    let mut l = row![].spacing(12);
+    for u in links {
+        l = l.push(link(u));
+    }
+    c = c.push(l.wrap());
+    if let Some(k) = key {
+        c = c.push(k);
+    }
+    card(title, c.into())
+}
+
 /// Clickable web address.
 fn link<'a>(url: &'static str) -> Element<'a, SettingsMessage> {
     button(text(url).size(12).style(th::info)).on_press(SettingsMessage::OpenUrl(url.to_string())).style(button::text).padding(0).into()
@@ -266,21 +304,36 @@ pub fn view<'a>(s: &'a SettingsState, app: &'a App) -> Element<'a, SettingsMessa
             card(t("SYNTAX"), text(t("{field} placeholder · {field.pad(3)} · .upper() .lower() .trim() · .replace(a, b) · .or(x) fallback · {disctotal > 1 ? 'CD' + disc + ' - ' : ''} condition\nFields: albumartist, artist, album, year, date, track, tracktotal, disc, disctotal, title, author, book, chapter, chaptertotal, narrator, series, part, label, catalog, barcode, genre, ext")).size(12).style(th::dim).into()),
         ].spacing(10).into(),
         Page::Sources => column![
-            card(t("MUSICBRAINZ AND ACOUSTID"), column![
-                text(t("MusicBrainz and the Cover Art Archive need no key. AcoustID fingerprint lookups need an application key: register tagjoe here and paste the key below. fpcalc (libchromaprint-tools) must be installed.")).size(12).style(th::dim),
-                link("https://acoustid.org/new-application"),
-                field(&t("AcoustID application key"), &cfg.sources.acoustid_key, SettingsMessage::AcoustIdKey),
+            card(t("ONLINE SOURCES"), column![
+                text(t("Every online source is off until you switch it on. tagjoe then sends only what the source needs (listed under each switch) and, as with any network access, your IP address. Without any source tagjoe works from tags and folder names only; for identification, covers and audiobook data switch on at least MusicBrainz (music) or AudiobookDB/Audnexus (audiobooks). Responses are cached locally.")).size(12).style(th::dim),
             ].spacing(6).into()),
-            card(t("DISCOGS"), column![
-                toggler(cfg.sources.discogs_enabled).label(t("Use Discogs as a second music source (personal access token)")).on_toggle(SettingsMessage::DiscogsEnabled).text_size(13),
-                link("https://www.discogs.com/settings/developers"),
-                field(&t("Discogs token"), &cfg.sources.discogs_token, SettingsMessage::DiscogsToken),
-            ].spacing(6).into()),
-            card(t("AUDIOBOOKS"), column![
-                text(t("Audiobook data from AudiobookDB and Audnexus. Anonymous access works; an AudiobookDB API key (free account) raises the limits.")).size(12).style(th::dim),
-                row![link("https://audiobookdb.org"), link("https://audiobookdb.org/settings/api-key")].spacing(12),
-                field(&t("AudiobookDB API key"), &cfg.sources.audiobookdb_key, SettingsMessage::AudiobookDbKey),
-            ].spacing(6).into()),
+            source_card(t("ACOUSTID"), cfg.sources.acoustid_enabled, SettingsMessage::AcoustIdEnabled,
+                t("Acoustic fingerprints (needs fpcalc and MusicBrainz): sends the fingerprint and the duration of every file plus your application key. Register tagjoe at acoustid.org and paste the key."),
+                &["https://acoustid.org/new-application", "https://acoustid.org/license"],
+                Some(field(&t("AcoustID application key"), &cfg.sources.acoustid_key, SettingsMessage::AcoustIdKey))),
+            source_card(t("MUSICBRAINZ"), cfg.sources.musicbrainz_enabled, SettingsMessage::MusicBrainzEnabled,
+                t("Release data for albums, compilations and audiobooks: sends album, artist or title and author as search terms, release ids and the program id with the project address (required by MusicBrainz)."),
+                &["https://metabrainz.org/privacy"], None),
+            source_card(t("COVER ART ARCHIVE"), cfg.sources.caa_enabled, SettingsMessage::CaaEnabled,
+                t("Covers for MusicBrainz releases: sends the release id. Run by MetaBrainz and the Internet Archive."),
+                &["https://metabrainz.org/privacy"], None),
+            source_card(t("DISCOGS"), cfg.sources.discogs_enabled, SettingsMessage::DiscogsEnabled,
+                t("Second music source: sends album and artist as search terms, release ids and your personal access token."),
+                &["https://www.discogs.com/settings/developers", "https://www.discogs.com/privacy"],
+                Some(field(&t("Discogs token"), &cfg.sources.discogs_token, SettingsMessage::DiscogsToken))),
+            source_card(t("AUDIOBOOKDB"), cfg.sources.audiobookdb_enabled, SettingsMessage::AudiobookDbEnabled,
+                t("Audiobook data: sends the title as search term, book ids and, if set, your API key (free account, higher limits). Attribution with link is required by AudiobookDB and included in this program."),
+                &["https://audiobookdb.org", "https://audiobookdb.org/settings/api-key", "https://audiobookdb.org/privacy"],
+                Some(field(&t("AudiobookDB API key"), &cfg.sources.audiobookdb_key, SettingsMessage::AudiobookDbKey))),
+            source_card(t("AUDNEXUS"), cfg.sources.audnexus_enabled, SettingsMessage::AudnexusEnabled,
+                t("Audible metadata via the Audnexus API (never Audible directly): sends the ASIN and the region. The service has no published privacy policy; see its project page."),
+                &["https://github.com/laxamentumtech/audnexus"], None),
+            source_card(t("DEUTSCHE NATIONALBIBLIOTHEK"), cfg.sources.dnb_enabled, SettingsMessage::DnbEnabled,
+                t("German audiobooks from the national bibliography (SRU): sends title and author as search terms."),
+                &["https://www.dnb.de/DE/Service/Datenschutz/datenschutz_node.html"], None),
+            source_card(t("OPEN LIBRARY"), cfg.sources.openlibrary_enabled, SettingsMessage::OpenLibraryEnabled,
+                t("Covers for DNB results by ISBN: sends the ISBN. Run by the Internet Archive."),
+                &["https://archive.org/about/terms"], None),
             card(t("CACHE"), field(&t("Keep responses for (days)"), &cfg.sources.cache_days.to_string(), SettingsMessage::CacheDays)),
         ].spacing(10).into(),
         Page::Clean => column![
@@ -324,9 +377,14 @@ pub fn view<'a>(s: &'a SettingsState, app: &'a App) -> Element<'a, SettingsMessa
         ].spacing(10).into(),
         Page::General => column![
             card(t("LANGUAGE"), column![field(&t("UI language (empty = system)"), &cfg.language, SettingsMessage::Language), text(t("Base language is English; German is available.")).size(12).style(th::dim)].spacing(6).into()),
+            card(t("UPDATES"), column![
+                text(format!("{} {}. {}", t("Installed:"), tagjoe_core::VERSION, t("The check asks GitHub at most once a day for the latest release of this repository and sends your IP address and the program id. Nothing is downloaded without your confirmation; a package is verified against SHA256SUMS of the same release."))).size(12).style(th::dim),
+                toggler(cfg.update_check).label(t("Check for new versions")).on_toggle(SettingsMessage::UpdateCheck).text_size(13),
+                row![button(text(t("Check now")).size(12)).on_press(SettingsMessage::CheckUpdateNow).style(button::secondary).padding([4, 8]), link("https://github.com/joeMJ/tagjoe/releases/latest"), link("https://github.com/joeMJ/tagjoe/issues")].spacing(12).align_y(iced::Center),
+            ].spacing(6).into()),
             card(t("QUEUE"), toggler(cfg.remove_done_from_queue).label(t("Remove a folder from the queue once it was written without errors")).on_toggle(SettingsMessage::RemoveDone).text_size(13).into()),
             card(t("CONFIGURATION FILE"), text(tagjoe_core::config::config_path().display().to_string()).size(12).font(iced::Font::MONOSPACE).into()),
-            card(t("CREDITS"), column![text(t("Music data: MusicBrainz, AcoustID, Cover Art Archive, Discogs. Audiobook data: AudiobookDB and Audnexus.")).size(12).style(th::dim), row![link("https://musicbrainz.org"), link("https://acoustid.org"), link("https://coverartarchive.org"), link("https://www.discogs.com"), link("https://audiobookdb.org"), link("https://github.com/laxamentumtech/audnexus")].spacing(12).wrap()].spacing(4).into()),
+            card(t("CREDITS"), column![text(t("Music data: MusicBrainz, AcoustID, Cover Art Archive, Discogs. Audiobook data: AudiobookDB, Audnexus, Deutsche Nationalbibliothek, covers from Open Library.")).size(12).style(th::dim), row![link("https://musicbrainz.org"), link("https://acoustid.org"), link("https://coverartarchive.org"), link("https://www.discogs.com"), link("https://audiobookdb.org"), link("https://github.com/laxamentumtech/audnexus"), link("https://www.dnb.de"), link("https://openlibrary.org")].spacing(12).wrap()].spacing(4).into()),
         ].spacing(10).into(),
     };
     let header = container(row![text(t("tagjoe – Settings")).size(16), space().width(Fill), button(text(t("Reset to defaults")).size(13)).on_press(SettingsMessage::Reset).style(button::secondary).padding([6, 10]), button(text(t("Cancel")).size(13)).on_press(SettingsMessage::Close).style(button::secondary).padding([6, 10]), button(text(t("Save")).size(13)).on_press(SettingsMessage::Save).style(button::primary).padding([6, 12])].spacing(8).align_y(iced::Center).padding([6, 12])).width(Fill).style(th::header_bar);

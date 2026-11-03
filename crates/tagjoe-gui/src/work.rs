@@ -156,3 +156,32 @@ pub fn pick_image_task(job: usize, start: Option<PathBuf>) -> Task<Message> {
         move |p| Message::CoverPicked(job, p),
     )
 }
+
+/// Ask GitHub for a newer release (only when the user switched the check on or clicks "Check now").
+pub fn update_check_task(manual: bool) -> Task<Message> {
+    Task::perform(
+        async move {
+            let (tx, rx) = iced::futures::channel::oneshot::channel();
+            std::thread::spawn(move || {
+                let _ = tx.send(tagjoe_core::update::check());
+            });
+            rx.await.unwrap_or_else(|_| Err("update thread failed".into()))
+        },
+        move |r| Message::UpdateChecked(manual, r),
+    )
+}
+
+/// Download the package of a release into the cache and verify it against SHA256SUMS.
+pub fn update_download_task(release: tagjoe_core::update::Release) -> Task<Message> {
+    Task::perform(
+        async move {
+            let (tx, rx) = iced::futures::channel::oneshot::channel();
+            std::thread::spawn(move || {
+                let dir = tagjoe_core::config::cache_dir().join("updates");
+                let _ = tx.send(tagjoe_core::update::download(&release, &dir));
+            });
+            rx.await.unwrap_or_else(|_| Err("download thread failed".into()))
+        },
+        Message::UpdateDownloaded,
+    )
+}

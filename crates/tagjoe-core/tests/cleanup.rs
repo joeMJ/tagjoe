@@ -54,7 +54,8 @@ fn candidates_follow_the_config() {
 fn deletes_after_clean_run_and_reports_progress() {
     let unit_path = temp_copy("delete");
     let jdir = unit_path.parent().unwrap().join("journal");
-    let cfg = Config::default();
+    let mut cfg = Config::default();
+    cfg.templates.folder_enabled = false; // keep the folder name, the test lists it afterwards
     let u = &scan::scan_path(&unit_path).unwrap()[0];
     let rel = release_from_unit(u);
     let mut plan = build_plan(u, &rel, &identity_match(u.files.len()), &cfg);
@@ -90,7 +91,8 @@ fn deletes_after_clean_run_and_reports_progress() {
 fn keeps_everything_after_an_error() {
     let unit_path = temp_copy("error");
     let jdir = unit_path.parent().unwrap().join("journal");
-    let cfg = Config::default();
+    let mut cfg = Config::default();
+    cfg.templates.folder_enabled = false;
     let u = &scan::scan_path(&unit_path).unwrap()[0];
     let rel = release_from_unit(u);
     let mut plan = build_plan(u, &rel, &identity_match(u.files.len()), &cfg);

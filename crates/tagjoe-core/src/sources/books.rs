@@ -220,11 +220,15 @@ impl BookIdentifier<'_> {
         let h = hints(unit);
         let mut notes = vec![format!("hints: title \"{}\", author \"{}\"{}{}", h.title, h.author, if h.series.is_empty() { String::new() } else { format!(", series \"{}\"", h.series) }, if h.asin.is_empty() { String::new() } else { format!(", ASIN {}", h.asin) })];
         let mut found: Vec<ReleaseInfo> = Vec::new();
+        let src = &self.cfg.sources;
         if self.http.offline {
             return Ok(vec![]);
         }
+        if !src.book_enabled() {
+            return Ok(vec![]);
+        }
         // 1. ASIN → Audnexus
-        if looks_like_asin(&h.asin) {
+        if src.audnexus_enabled && looks_like_asin(&h.asin) {
             progress("audnexus", 1, 1);
             let an = Audnexus { http: self.http, base: &self.cfg.sources.audnexus_url };
             match an.release_info(&h.asin, &self.cfg.audiobook.audnexus_regions) {
@@ -235,7 +239,7 @@ impl BookIdentifier<'_> {
         }
         // 2. AudiobookDB title search
         let db = AudiobookDb { http: self.http, base: &self.cfg.sources.audiobookdb_url, key: &self.cfg.sources.audiobookdb_key };
-        match db.search(&h.title, 10) {
+        match if src.audiobookdb_enabled { db.search(&h.title, 10) } else { Ok(vec![]) } {
             Ok(hits) => {
                 let mut scored: Vec<(f64, _)> = hits
                     .into_iter()
@@ -256,7 +260,7 @@ impl BookIdentifier<'_> {
                         Err(e) => notes.push(format!("AudiobookDB {}: {}", hit.id, e.short())),
                     }
                 }
-                if total == 0 {
+                if total == 0 && src.audiobookdb_enabled {
                     notes.push(format!("AudiobookDB: no match for \"{}\"", h.title));
                 }
             }
@@ -266,6 +270,9 @@ impl BookIdentifier<'_> {
         let mb = MusicBrainz { http: self.http, base: &self.cfg.sources.musicbrainz_url };
         let mut mb_ids = Vec::new();
         for q in [(h.title.as_str(), h.author.as_str(), Some(unit.files.len())), (h.title.as_str(), h.author.as_str(), None)] {
+            if !src.musicbrainz_enabled {
+                break;
+            }
             match mb.search(q.0, q.1, q.2, 5) {
                 Ok(c) => {
                     for cand in c {
@@ -289,10 +296,12 @@ impl BookIdentifier<'_> {
         }
         // 4. DNB: the German national bibliography (complete for German audiobooks, no chapters)
         let dnb = Dnb { http: self.http };
-        progress("dnb", 1, 1);
-        match dnb.search(&h.title, &h.author, 10) {
+        if src.dnb_enabled {
+            progress("dnb", 1, 1);
+        }
+        match if src.dnb_enabled { dnb.search(&h.title, &h.author, 10) } else { Ok(vec![]) } {
             Ok(rs) => {
-                if rs.is_empty() {
+                if rs.is_empty() && src.dnb_enabled {
                     notes.push(format!("DNB: no audiobook for \"{}\"", h.title));
                 }
                 found.extend(rs.into_iter().take(4));
@@ -300,7 +309,7 @@ impl BookIdentifier<'_> {
             Err(e) => notes.push(format!("DNB: {}", e.short())),
         }
         // 5. follow an ASIN found via AudiobookDB to Audnexus (richer, regional data)
-        if !looks_like_asin(&h.asin) {
+        if src.audnexus_enabled && !looks_like_asin(&h.asin) {
             let asins: Vec<String> = found.iter().filter_map(|r| r.album.get(&Field::Asin).cloned()).filter(|a| looks_like_asin(a)).collect();
             let an = Audnexus { http: self.http, base: &self.cfg.sources.audnexus_url };
             for a in asins.into_iter().take(2) {

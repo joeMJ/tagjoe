@@ -168,8 +168,13 @@ impl Identifier<'_> {
         let mut release_votes: BTreeMap<String, usize> = BTreeMap::new();
 
         // 1. fingerprints + AcoustID
-        let key = self.cfg.sources.acoustid_key.trim();
-        if fingerprint::available() && !key.is_empty() && !self.http.offline {
+        let src = &self.cfg.sources;
+        if !src.music_enabled() {
+            notes.push("all music sources are off (Settings → Sources)".into());
+            return Ok(vec![]);
+        }
+        let key = src.acoustid_key.trim();
+        if src.acoustid_enabled && src.musicbrainz_enabled && fingerprint::available() && !key.is_empty() && !self.http.offline {
             let paths: Vec<_> = unit.files.iter().map(|f| f.path.clone()).collect();
             let fps = fingerprint::compute_all(&paths, 120, progress);
             let acoust = AcoustId { http: self.http, key };
@@ -202,6 +207,10 @@ impl Identifier<'_> {
                 line.push_str(&format!(", {c}× {e}"));
             }
             notes.push(line);
+        } else if !src.acoustid_enabled {
+            notes.push("AcoustID is off; using tag search only".into());
+        } else if !src.musicbrainz_enabled {
+            notes.push("AcoustID needs MusicBrainz for the release data; MusicBrainz is off".into());
         } else if key.is_empty() {
             notes.push("AcoustID key not configured; using tag search only".into());
         } else if !fingerprint::available() {
@@ -215,7 +224,10 @@ impl Identifier<'_> {
         let base = crate::propose::release_from_unit(unit);
         let album = base.album.get(&Field::Album).cloned().unwrap_or_default();
         let artist = base.album.get(&Field::AlbumArtist).cloned().unwrap_or_default();
-        if candidates.len() < 3 && !self.http.offline {
+        if !src.musicbrainz_enabled {
+            candidates.clear();
+            notes.push("MusicBrainz is off".into());
+        } else if candidates.len() < 3 && !self.http.offline {
             let mut found = Vec::new();
             for q in [(album.as_str(), artist.as_str(), Some(n)), (album.as_str(), artist.as_str(), None), (album.as_str(), "", None)] {
                 if q.0.trim().is_empty() {
@@ -283,6 +295,10 @@ impl Identifier<'_> {
     /// Attach cover bytes: resolve a `CoverSource::Url`, or fetch the Cover Art Archive front.
     pub fn fetch_cover(&self, release: &mut ReleaseInfo) -> Result<bool> {
         if let Some(CoverSource::Url { url }) = release.cover.clone() {
+            if url.contains("covers.openlibrary.org") && !self.cfg.sources.openlibrary_enabled {
+                release.cover = None;
+                return Ok(false);
+            }
             match self.http.get_bytes(&url, &[], "img") {
                 Ok(bytes) if bytes.len() > 1000 => {
                     let mime = if bytes.starts_with(&[0x89, b'P', b'N', b'G']) { "image/png" } else { "image/jpeg" };
@@ -296,7 +312,7 @@ impl Identifier<'_> {
             }
         }
         let rid = release.album.get(&Field::MbReleaseId).cloned().unwrap_or_default();
-        if rid.is_empty() {
+        if rid.is_empty() || !self.cfg.sources.caa_enabled {
             return Ok(false);
         }
         let rg = release.album.get(&Field::MbReleaseGroupId).cloned();

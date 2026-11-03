@@ -19,3 +19,6 @@ secrets.*
 *.snk
 *.jks
 *.keystore
+
+# Lokale Ablage (Release-Ausgaben, Probeläufe) – nie versioniert
+/lokal/
